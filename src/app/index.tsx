@@ -1,48 +1,46 @@
-import { Text, View, StyleSheet } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
-
-interface Exercise {
-  name: string;
-  weight?: number[];
-  reps?: number[];
-}
-
-type Workout = {
-  name: string;
-  time: number;
-  exercises: Exercise[];
-};
+import { Text, StyleSheet, FlatList } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import WorkoutCard from "./components/workoutCard";
+import { useAppContext } from "./context/appContext";
 
 export default function Index() {
-  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
-  const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
-  const [history, setHistory] = useState<Workout[]>([]);
+  const { history } = useAppContext();
+  const testHistory = [
+    {
+      name: "String",
+      time: 1200,
+      date: new Date(),
+      exercises: [],
+    },
+    {
+      name: "Water",
+      time: 1200,
+      date: new Date(),
+      exercises: [],
+    },
+  ];
 
-  useEffect(() => {
-    const loadWorkoutData = async () => {
-      const w = await AsyncStorage.getItem("currentWorkout");
-      const e = await AsyncStorage.getItem("exercises");
-      const p = await AsyncStorage.getItem("pastWorkouts");
-
-      setCurrentWorkout(w ? (JSON.parse(w) as Workout) : null);
-      setExerciseList(e ? (JSON.parse(e) as Exercise[]) : []);
-      setHistory(p ? (JSON.parse(p) as Workout[]) : []);
-    };
-
-    loadWorkoutData();
-  }, []);
   return (
-    <View style={styles.container}>
-      <Text></Text>
-    </View>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <Text style={styles.title}>SimplyLift</Text>
+      <FlatList
+        data={testHistory}
+        renderItem={({ item }) => <WorkoutCard workout={item} />}
+        keyExtractor={(item) => `${item.name} - ${String(item.date)}`}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  title: {
+    fontSize: 50,
+    fontWeight: 900,
+    paddingBottom: 20,
   },
 });
