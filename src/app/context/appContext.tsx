@@ -43,9 +43,20 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       const e = await AsyncStorage.getItem("exercises");
       const p = await AsyncStorage.getItem("pastWorkouts");
 
-      setCurrentWorkout(w ? (JSON.parse(w) as Workout) : null);
+      const parsedWorkout = w ? JSON.parse(w) : null;
+      setCurrentWorkout(
+        parsedWorkout
+          ? { ...parsedWorkout, date: new Date(parsedWorkout.date) }
+          : null,
+      );
+      const parsedHistory = p ? JSON.parse(p) : [];
+      setHistory(
+        parsedHistory.map((workout: any) => ({
+          ...workout,
+          date: new Date(workout.date),
+        })),
+      );
       setExerciseList(e ? (JSON.parse(e) as Exercise[]) : []);
-      setHistory(p ? (JSON.parse(p) as Workout[]) : []);
 
       setHasLoadedStorage(true);
     };

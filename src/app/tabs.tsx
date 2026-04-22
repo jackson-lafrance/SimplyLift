@@ -9,7 +9,9 @@ import {
 
 export default function Tabs() {
   return (
-    <View style={styles.container}>
+    <View style={{
+      flex: 1
+    }}>
       <Pressable>
         <Text>Hello</Text>
       </Pressable>
@@ -51,18 +53,3 @@ export default function Tabs() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  startButton: {
-    zIndex: 1000,
-    position: "absolute",
-    left: 0,
-    top: 0
-  },
-});
