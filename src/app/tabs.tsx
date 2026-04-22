@@ -2,7 +2,6 @@ import { NativeTabs } from "expo-router/unstable-native-tabs";
 import {
   DynamicColorIOS,
   Pressable,
-  StyleSheet,
   View,
   Text,
 } from "react-native";

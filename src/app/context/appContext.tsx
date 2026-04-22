@@ -4,6 +4,8 @@ import {
   useState,
   useEffect,
   ReactNode,
+  Dispatch,
+  SetStateAction,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -22,11 +24,11 @@ export interface Workout {
 
 interface AppContextType {
   currentWorkout: Workout | null;
-  setCurrentWorkout: (currentWorkout: Workout | null) => void;
+  setCurrentWorkout: Dispatch<SetStateAction<Workout | null>>;
   exerciseList: Exercise[];
-  setExerciseList: (exerciseList: Exercise[]) => void;
+  setExerciseList: Dispatch<SetStateAction<Exercise[]>>;
   history: Workout[];
-  setHistory: (history: Workout[]) => void;
+  setHistory: Dispatch<SetStateAction<Workout[]>>;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
