@@ -9,10 +9,14 @@ import {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export interface Set {
+  reps: number;
+  weight: number;
+}
+
 export interface Exercise {
   name: string;
-  weight?: number[];
-  reps?: number[];
+  sets?: Set[]
 }
 
 export interface Workout {

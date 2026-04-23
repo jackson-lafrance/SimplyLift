@@ -1,4 +1,4 @@
-import { Text, StyleSheet, FlatList, ScrollView } from "react-native";
+import { Text, StyleSheet, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WorkoutCard from "./components/workoutCard";
 import { useAppContext } from "./context/appContext";
@@ -8,13 +8,11 @@ export default function Index() {
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <Text style={styles.title}>SimplyLift</Text>
-      <ScrollView>
-      <FlatList
-        data={history}
-        renderItem={({ item }) => <WorkoutCard workout={item} />}
-        keyExtractor={(item) => `${item.name} - ${String(item.date)}`}
-      />
-      </ScrollView>
+        <FlatList
+          data={history}
+          renderItem={({ item }) => <WorkoutCard workout={item} />}
+          keyExtractor={(item) => `${item.name} - ${String(item.date)}`}
+        />
     </SafeAreaView>
   );
 }

@@ -5,11 +5,13 @@ import {
   View,
   TextInput,
   Alert,
+  FlatList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppContext } from "./context/appContext";
 import Tabs from "./tabs";
 import { useEffect, useState } from "react";
+import ExerciseCard from "./components/exerciseCard";
 
 export default function AppManager() {
   const { currentWorkout, setCurrentWorkout, setHistory } = useAppContext();
@@ -73,7 +75,7 @@ export default function AppManager() {
       style={{
         flex: 1,
         alignItems: "center",
-        justifyContent: "flex-start",
+        justifyContent: "center",
         marginTop: insets.top,
         marginBottom: insets.bottom,
       }}
@@ -91,6 +93,15 @@ export default function AppManager() {
         {String(Math.floor((time % 3600000) / 60000)).padStart(2, "0")}:
         {String(Math.floor((time % 60000) / 1000)).padStart(2, "0")}
       </Text>
+      <FlatList
+        data={currentWorkout.exercises}
+        renderItem={({ item }) => (
+          <View style={{ width: "100%", alignItems: "center", margin: 10 }}>
+            <ExerciseCard exercise={item} />
+          </View>
+        )}
+        style={{ width: "100%" }}
+      />
 
       <View
         style={{
@@ -123,7 +134,23 @@ export default function AppManager() {
         >
           <Text style={styles.buttonText}>Quit</Text>
         </Pressable>
-        <Pressable style={styles.bigButton}>
+        <Pressable
+          style={styles.bigButton}
+          onPress={() => {
+            setCurrentWorkout((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    exercises: [
+                      ...prev.exercises,
+                      { name: "jit", sets: [{ reps: 10, weight: 10 }] },
+                    ],
+                  }
+                : prev,
+            );
+            console.log(currentWorkout);
+          }}
+        >
           <Text style={styles.buttonText}>Log Exercise</Text>
         </Pressable>
         <Pressable

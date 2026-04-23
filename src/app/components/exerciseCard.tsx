@@ -1,0 +1,71 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { StyleSheet, View, Text, FlatList, Pressable } from "react-native";
+import { Exercise } from "../context/appContext";
+import SetCard from "./setCard";
+import { useState } from "react";
+
+export interface ExerciseCardProps {
+  exercise: Exercise;
+}
+
+export default function ExerciseCard({ exercise }: ExerciseCardProps) {
+  const [dropdowned, setDropdowned] = useState(false);
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.name}>{exercise.name}</Text>
+        <Pressable
+          style={styles.toggleButton}
+          onPress={() => setDropdowned((prev) => !prev)}
+        >
+          <MaterialIcons
+            name={dropdowned ? "keyboard-arrow-down" : "keyboard-arrow-up"}
+            size={28}
+            color="#111"
+          />
+        </Pressable>
+      </View>
+      <FlatList
+        data={exercise.sets}
+        renderItem={({ item }) => <SetCard set={item} />}
+        keyExtractor={(index) => `${index}`}
+        style={dropdowned ? { display: "none" } : { width: "100%" }}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "90%",
+    padding: 10,
+    borderRadius: 10,
+    borderColor: "black",
+    borderWidth: 2,
+    alignSelf: "center",
+    flex: 1,
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    flexDirection: "row",
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  name: {
+    fontWeight: 600,
+    fontSize: 20,
+  },
+  toggleButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+    backgroundColor: "#f2f2f2",
+  },
+});
