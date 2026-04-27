@@ -27,7 +27,9 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
       </View>
       <FlatList
         data={exercise.sets}
-        renderItem={({ item }) => <SetCard set={item} />}
+        renderItem={({ item, index }) => (
+          <SetCard setNumber={index+1} set={item} exerciseName={exercise.name} />
+        )}
         keyExtractor={(index) => `${index}`}
         style={dropdowned ? { display: "none" } : { width: "100%" }}
       />

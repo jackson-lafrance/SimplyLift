@@ -1,36 +1,8 @@
 import { StyleSheet, View, Text, TextInput } from "react-native";
-import { Set, useAppContext } from "../context/appContext";
+import { useAppContext } from "../context/appContext";
 
-export interface setProps {
-  set: Set;
-  setNumber: number;
-  exerciseName: string;
-}
-
-export default function SetCard({ set, setNumber, exerciseName }: setProps) {
-  const { currentWorkout, setCurrentWorkout } = useAppContext();
-
-  const handleUpdate = (value: string, field: "weight" | "reps") => {
-    if (!currentWorkout) return;
-
-    const numValue = parseFloat(value) || 0;
-
-    setCurrentWorkout({
-      ...currentWorkout,
-      exercises: currentWorkout.exercises.map((ex) => {
-        if (ex.name !== exerciseName) return ex;
-
-        return {
-          ...ex,
-          sets: ex.sets?.map((se, index) => {
-            if (index !== setNumber - 1) return se;
-
-            return { ...se, [field]: numValue };
-          }),
-        };
-      }),
-    });
-  };
+export default function newExercise() {
+  const { currentWorkout, setCurrentWorkout, exerciseList } = useAppContext();
 
   return (
     <View style={styles.header}>
@@ -63,6 +35,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 15,
   },
   name: {
     fontWeight: 700,

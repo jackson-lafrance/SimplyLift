@@ -101,6 +101,7 @@ export default function AppManager() {
           </View>
         )}
         style={{ width: "100%" }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       />
 
       <View
