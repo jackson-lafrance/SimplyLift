@@ -1,9 +1,15 @@
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, StyleSheet, FlatList } from "react-native";
+import { useAppContext } from "./context/appContext";
 
 export default function Exercises() {
+  const { exerciseList } = useAppContext();
   return (
     <View style={styles.container}>
-      <Text>Hi</Text>
+      <FlatList
+        data={exerciseList}
+        keyExtractor={(item) => item.name}
+        renderItem={({ item }) => <Text>{item.name}</Text>}
+      />
     </View>
   );
 }

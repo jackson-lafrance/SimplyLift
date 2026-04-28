@@ -25,14 +25,18 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
           />
         </Pressable>
       </View>
-      <FlatList
-        data={exercise.sets}
-        renderItem={({ item, index }) => (
-          <SetCard setNumber={index+1} set={item} exerciseName={exercise.name} />
-        )}
-        keyExtractor={(index) => `${index}`}
-        style={dropdowned ? { display: "none" } : { width: "100%" }}
-      />
+      {!dropdowned && (
+        <View style={{ width: "100%" }}>
+          {exercise.sets?.map((item, index) => (
+            <SetCard
+              key={index}
+              setNumber={index + 1}
+              set={item}
+              exerciseName={exercise.name}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }

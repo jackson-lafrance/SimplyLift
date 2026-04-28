@@ -1,5 +1,6 @@
 import { StyleSheet, View, Text, TextInput } from "react-native";
 import { Set, useAppContext } from "../context/appContext";
+import { useState } from "react";
 
 export interface setProps {
   set: Set;
@@ -10,7 +11,13 @@ export interface setProps {
 export default function SetCard({ set, setNumber, exerciseName }: setProps) {
   const { currentWorkout, setCurrentWorkout } = useAppContext();
 
+  const [weightText, setWeightText] = useState(set?.weight.toString() || 0);
+  const [repText, setRepText] = useState(set?.reps.toString() || 0);
+
   const handleUpdate = (value: string, field: "weight" | "reps") => {
+    if (field === "weight") setWeightText(value);
+    if (field === "reps") setRepText(value);
+
     if (!currentWorkout) return;
 
     const numValue = parseFloat(value) || 0;
@@ -42,7 +49,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           onChangeText={(text) => {
             handleUpdate(text, "weight");
           }}
-          value={set.weight === 0 ? "" : set.weight.toString()}
+          value={weightText}
         />
       </View>
       <TextInput
@@ -51,7 +58,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
         onChangeText={(text) => {
           handleUpdate(text, "reps");
         }}
-        value={set.reps === 0 ? "" : set.reps.toString()}
+        value={repText}
       />
     </View>
   );
