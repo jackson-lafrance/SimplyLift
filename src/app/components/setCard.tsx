@@ -1,6 +1,7 @@
 import { StyleSheet, View, Text, TextInput, Pressable } from "react-native";
 import { Set, useAppContext } from "../context/appContext";
 import { useState } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export interface setProps {
   set: Set;
@@ -40,27 +41,35 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
   };
 
   return (
-    <View style={styles.header}>
-      <View style={{ display: "flex", flexDirection: "row", gap: 5 }}>
-        <Text style={styles.name}>{setNumber}</Text>
+    <View style={styles.container}>
+      <View style={styles.numberCol}>
+        <Text style={styles.setNumber}>{setNumber}</Text>
+      </View>
+      
+      <View style={styles.inputCol}>
         <TextInput
-          style={styles.name}
+          style={styles.input}
           keyboardType="numeric"
-          onChangeText={(text) => {
-            handleUpdate(text, "weight");
-          }}
+          onChangeText={(text) => handleUpdate(text, "weight")}
           value={weightText}
+          placeholder="0"
+          placeholderTextColor="#C7C7CC"
         />
       </View>
-      <TextInput
-        style={styles.name}
-        keyboardType="numeric"
-        onChangeText={(text) => {
-          handleUpdate(text, "reps");
-        }}
-        value={repText}
-      />
+
+      <View style={styles.inputCol}>
+        <TextInput
+          style={styles.input}
+          keyboardType="numeric"
+          onChangeText={(text) => handleUpdate(text, "reps")}
+          value={repText}
+          placeholder="0"
+          placeholderTextColor="#C7C7CC"
+        />
+      </View>
+
       <Pressable
+        style={styles.removeButton}
         onPress={() =>
           setCurrentWorkout((prev) => {
             if (!prev) return prev;
@@ -70,9 +79,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
                 if (exe.name === exerciseName) {
                   return {
                     ...exe,
-                    sets: exe.sets
-                      ? exe.sets.filter((_, index) => index !== setNumber - 1)
-                      : exe.sets,
+                    sets: exe.sets?.filter((_, index) => index !== setNumber - 1),
                   };
                 }
                 return exe;
@@ -81,21 +88,47 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           })
         }
       >
-        <Text>-</Text>
+        <MaterialIcons name="close" size={16} color="#8E8E93" />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    display: "flex",
+  container: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 4,
+    gap: 8,
   },
-  name: {
-    fontWeight: 700,
-    fontSize: 20,
+  numberCol: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  setNumber: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "black",
+  },
+  inputCol: {
+    flex: 1,
+  },
+  input: {
+    backgroundColor: "#F2F2F7",
+    paddingVertical: 10,
+    borderRadius: 6,
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "black",
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  removeButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

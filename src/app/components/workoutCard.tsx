@@ -28,12 +28,11 @@ export default function WorkoutCard({ workout }: WorkoutCardProps) {
       
       <View style={styles.bottomRow}>
         <View style={styles.stat}>
-          <MaterialIcons name="timer" size={14} color="#666" />
+          <MaterialIcons name="timer" size={14} color="#000" />
           <Text style={styles.statText}>{formatDuration(workout.time || 0)}</Text>
         </View>
-        <View style={styles.dot} />
         <View style={styles.stat}>
-          <MaterialIcons name="fitness-center" size={14} color="#666" />
+          <MaterialIcons name="fitness-center" size={14} color="#000" />
           <Text style={styles.statText}>
             {workout.exercises.length} Exercises
           </Text>
@@ -45,9 +44,9 @@ export default function WorkoutCard({ workout }: WorkoutCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 10,
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: "black",
     backgroundColor: "white",
@@ -56,23 +55,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   name: {
-    fontWeight: "800",
+    fontWeight: "900",
     fontSize: 16,
     flex: 1,
     marginRight: 8,
+    textTransform: "uppercase",
   },
   date: {
     color: "#8E8E93",
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "800",
+    textTransform: "uppercase",
   },
   bottomRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 16,
   },
   stat: {
     flexDirection: "row",
@@ -80,14 +81,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statText: {
-    color: "#666",
+    color: "#000",
     fontSize: 12,
-    fontWeight: "600",
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: "#C7C7CC",
+    fontWeight: "800",
+    textTransform: "uppercase",
   },
 });

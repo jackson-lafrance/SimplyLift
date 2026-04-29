@@ -7,6 +7,7 @@ import {
   Alert,
   FlatList,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppContext } from "../context/appContext";
 import { useEffect, useState } from "react";
@@ -74,13 +75,14 @@ export default function ActiveWorkout() {
       <View
         style={{
           position: "absolute",
-          bottom: insets.bottom - 20,
+          bottom: insets.bottom + 10,
           alignItems: "center",
           display: "flex",
           flexDirection: "row",
           justifyContent: "space-between",
           zIndex: 10,
           width: "90%",
+          gap: 10,
         }}
       >
         <Pressable
@@ -98,9 +100,9 @@ export default function ActiveWorkout() {
               },
             ]);
           }}
-          style={[styles.smallButton, { backgroundColor: "red" }]}
+          style={[styles.smallButton, { backgroundColor: "white" }]}
         >
-          <Text style={styles.buttonText}>Quit</Text>
+          <MaterialIcons name="close" size={24} color="black" />
         </Pressable>
         <Pressable
           style={styles.bigButton}
@@ -108,7 +110,7 @@ export default function ActiveWorkout() {
             setVisible(true);
           }}
         >
-          <Text style={styles.buttonText}>Log Exercise</Text>
+          <Text style={styles.buttonText}>Add Exercise</Text>
         </Pressable>
         <Pressable
           onPress={() => {
@@ -153,9 +155,9 @@ export default function ActiveWorkout() {
               },
             ]);
           }}
-          style={[styles.smallButton, { backgroundColor: "#32cd32" }]}
+          style={[styles.smallButton, { backgroundColor: "black" }]}
         >
-          <Text style={styles.buttonText}>Submit</Text>
+          <MaterialIcons name="check" size={24} color="white" />
         </Pressable>
       </View>
     </View>
@@ -164,32 +166,41 @@ export default function ActiveWorkout() {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: 36,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: -0.5,
   },
   timer: {
     fontFamily: "ui-monospace",
-    fontSize: 24,
-    padding: 5,
+    fontSize: 32,
+    fontWeight: "800",
+    padding: 10,
+    color: "black",
   },
   smallButton: {
-    width: 75,
-    height: 75,
+    width: 60,
+    height: 60,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 15,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "black",
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "900",
     color: "white",
+    textTransform: "uppercase",
   },
   bigButton: {
-    width: 200,
-    height: 75,
+    flex: 1,
+    height: 60,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#24A0ED",
-    borderRadius: 15,
+    backgroundColor: "black",
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "black",
   },
 });

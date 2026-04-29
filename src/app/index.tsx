@@ -6,16 +6,74 @@ import {
   Modal,
   View,
   ScrollView,
+  Animated,
+  Dimensions,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WorkoutCard from "./components/workoutCard";
 import { useAppContext, Workout } from "./context/appContext";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 
+const { height } = Dimensions.get("window");
+
 export default function Index() {
-  const { history } = useAppContext();
+  const { history, setHistory } = useAppContext();
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  
+  const slideAnim = useRef(new Animated.Value(height)).current;
+
+  useEffect(() => {
+    if (selectedWorkout) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 60,
+        friction: 12,
+      }).start();
+    }
+  }, [selectedWorkout]);
+
+  const closeModal = () => {
+    Animated.timing(slideAnim, {
+      toValue: height,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setSelectedWorkout(null);
+    });
+  };
+
+  const deleteWorkout = () => {
+    Alert.alert(
+      "Delete Workout",
+      "Are you sure you want to delete this workout? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            Animated.timing(slideAnim, {
+              toValue: height,
+              duration: 200,
+              useNativeDriver: true,
+            }).start(() => {
+              setHistory((prev) =>
+                prev.filter(
+                  (w) =>
+                    w.date.getTime() !== selectedWorkout?.date.getTime() ||
+                    w.name !== selectedWorkout?.name,
+                ),
+              );
+              setSelectedWorkout(null);
+            });
+          },
+        },
+      ],
+    );
+  };
 
   const formatTime = (ms: number) => {
     const hours = Math.floor(ms / 3600000);
@@ -51,10 +109,15 @@ export default function Index() {
         visible={!!selectedWorkout}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setSelectedWorkout(null)}
+        onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <Animated.View 
+            style={[
+              styles.modalContent,
+              { transform: [{ translateY: slideAnim }] }
+            ]}
+          >
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>{selectedWorkout?.name}</Text>
@@ -66,9 +129,14 @@ export default function Index() {
                   })}
                 </Text>
               </View>
-              <Pressable onPress={() => setSelectedWorkout(null)}>
-                <MaterialIcons name="close" size={28} color="black" />
-              </Pressable>
+              <View style={{ flexDirection: "row", gap: 16 }}>
+                <Pressable onPress={deleteWorkout}>
+                  <MaterialIcons name="delete-outline" size={28} color="#FF3B30" />
+                </Pressable>
+                <Pressable onPress={closeModal}>
+                  <MaterialIcons name="close" size={28} color="black" />
+                </Pressable>
+              </View>
             </View>
 
             <View style={styles.statsBar}>
@@ -105,12 +173,12 @@ export default function Index() {
             </ScrollView>
 
             <Pressable
-              onPress={() => setSelectedWorkout(null)}
+              onPress={closeModal}
               style={styles.doneButton}
             >
               <Text style={styles.doneButtonText}>Done</Text>
             </Pressable>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -131,7 +199,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 200,
+    paddingBottom: 250,
   },
   modalOverlay: {
     flex: 1,
@@ -141,29 +209,37 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: "white",
     height: "85%",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderWidth: 2,
+    borderBottomWidth: 0,
+    borderColor: "black",
     padding: 24,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: -0.5,
   },
   modalSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#8E8E93",
-    fontWeight: "500",
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
   statsBar: {
     flexDirection: "row",
-    backgroundColor: "#F2F2F7",
-    borderRadius: 16,
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "black",
+    borderRadius: 8,
     padding: 16,
     marginBottom: 24,
     gap: 32,
@@ -172,31 +248,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 10,
+    fontWeight: "800",
     color: "#8E8E93",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statValue: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "900",
+    fontFamily: "ui-monospace",
   },
   exerciseList: {
     flex: 1,
   },
   exerciseContainer: {
     marginBottom: 24,
-    borderLeftWidth: 3,
-    borderLeftColor: "black",
     paddingLeft: 16,
+    borderLeftWidth: 2,
+    borderLeftColor: "black",
   },
   exerciseName: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "800",
     marginBottom: 12,
+    textTransform: "uppercase",
   },
   setsGrid: {
-    gap: 8,
+    gap: 6,
   },
   setRow: {
     flexDirection: "row",
@@ -204,26 +282,30 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   setNumber: {
-    width: 20,
-    fontSize: 14,
-    fontWeight: "700",
+    width: 15,
+    fontSize: 12,
+    fontWeight: "800",
     color: "#8E8E93",
   },
   setDetails: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
   doneButton: {
     backgroundColor: "black",
     paddingVertical: 18,
-    borderRadius: 16,
+    borderRadius: 8,
     alignItems: "center",
     marginTop: 16,
+    borderWidth: 2,
+    borderColor: "black",
   },
   doneButtonText: {
     color: "white",
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   emptyContainer: {
     paddingTop: 100,

@@ -6,9 +6,13 @@ import {
   TextInput,
   Alert,
   Modal,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { useAppContext, Set } from "../context/appContext";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+
+const { height } = Dimensions.get("window");
 
 interface NewExerciseParams {
   close: () => void;
@@ -20,6 +24,27 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
   const [exerciseName, setExerciseName] = useState<string>("");
   const [defaultSet, setDefaultSet] = useState<Set[]>([{ reps: 0, weight: 0 }]);
+
+  const slideAnim = useRef(new Animated.Value(height)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 12,
+    }).start();
+  }, []);
+
+  const handleClose = () => {
+    Animated.timing(slideAnim, {
+      toValue: height,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      close();
+    });
+  };
 
   const suggestions = useMemo(() => {
     if (!exerciseName.trim()) return [];
@@ -59,10 +84,15 @@ export default function NewExercise({ close }: NewExerciseParams) {
       animationType="fade"
       transparent={true}
       visible={true}
-      onRequestClose={close}
+      onRequestClose={handleClose}
     >
       <View style={styles.backgrounder}>
-        <View style={styles.modalContent}>
+        <Animated.View 
+          style={[
+            styles.modalContent,
+            { transform: [{ translateY: slideAnim }] }
+          ]}
+        >
           <Text style={styles.label}>Exercise Name</Text>
           <TextInput
             style={styles.input}
@@ -94,7 +124,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
           <View style={styles.buttonContainer}>
             <Pressable
               style={[styles.button, styles.cancelButton]}
-              onPress={close}
+              onPress={handleClose}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </Pressable>
@@ -124,13 +154,13 @@ export default function NewExercise({ close }: NewExerciseParams) {
                       }
                     : prev,
                 );
-                close();
+                handleClose();
               }}
             >
               <Text style={styles.submitButtonText}>Add Exercise</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -148,55 +178,48 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "white",
     padding: 24,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "black",
   },
   label: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 10,
+    fontWeight: "900",
     color: "#8E8E93",
     marginBottom: 4,
     textTransform: "uppercase",
+    letterSpacing: 1,
   },
   input: {
-    fontSize: 20,
-    fontWeight: "600",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
+    fontSize: 18,
+    fontWeight: "800",
+    borderWidth: 2,
+    borderColor: "black",
+    borderRadius: 8,
     paddingVertical: 12,
+    paddingHorizontal: 16,
     color: "#000",
+    backgroundColor: "white",
+    textTransform: "uppercase",
   },
   suggestionsContainer: {
-    backgroundColor: "#F2F2F7",
-    borderRadius: 12,
+    backgroundColor: "white",
+    borderRadius: 8,
     marginTop: 8,
+    borderWidth: 2,
+    borderColor: "black",
     overflow: "hidden",
   },
   suggestionItem: {
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
+    borderBottomColor: "#F2F2F7",
   },
   suggestionText: {
-    fontSize: 16,
-    color: "#007AFF",
-    fontWeight: "500",
-  },
-  infoBox: {
-    marginTop: 20,
-    padding: 12,
-    backgroundColor: "#F2F2F7",
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  infoText: {
     fontSize: 14,
-    color: "#666",
-    textAlign: "center",
+    color: "black",
+    fontWeight: "800",
+    textTransform: "uppercase",
   },
   buttonContainer: {
     flexDirection: "row",
@@ -207,22 +230,26 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 14,
+    borderRadius: 8,
     minWidth: 110,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "black",
   },
   cancelButton: {
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "white",
   },
   cancelButtonText: {
-    color: "#8E8E93",
-    fontWeight: "600",
+    color: "black",
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   submitButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "black",
   },
   submitButtonText: {
     color: "white",
-    fontWeight: "600",
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
 });

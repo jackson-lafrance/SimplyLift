@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { StyleSheet, View, Text, FlatList, Pressable } from "react-native";
+import { StyleSheet, View, Text, Pressable } from "react-native";
 import { Exercise, useAppContext } from "../context/appContext";
 import SetCard from "./setCard";
 import { useState } from "react";
@@ -12,60 +12,65 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   const [dropdowned, setDropdowned] = useState(false);
   const { setCurrentWorkout } = useAppContext();
 
+  const handleAddSet = () => {
+    setCurrentWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((ex) => {
+          if (ex.name === exercise.name) {
+            const lastSet = ex.sets && ex.sets.length > 0 
+              ? ex.sets[ex.sets.length - 1] 
+              : { weight: 0, reps: 0 };
+              
+            return {
+              ...ex,
+              sets: [...(ex.sets || []), { ...lastSet }],
+            };
+          }
+          return ex;
+        }),
+      };
+    });
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <Pressable 
+        style={styles.header}
+        onPress={() => setDropdowned((prev) => !prev)}
+      >
         <Text style={styles.name}>{exercise.name}</Text>
-        <Pressable
-          style={styles.toggleButton}
-          onPress={() => setDropdowned((prev) => !prev)}
-        >
-          <MaterialIcons
-            name={dropdowned ? "keyboard-arrow-down" : "keyboard-arrow-up"}
-            size={28}
-            color="#111"
-          />
-        </Pressable>
-      </View>
+        <MaterialIcons
+          name={dropdowned ? "keyboard-arrow-down" : "keyboard-arrow-up"}
+          size={24}
+          color="black"
+        />
+      </Pressable>
+      
       {!dropdowned && (
-        <>
-          <View style={{ width: "100%" }}>
-            {exercise.sets?.map((item, index) => (
-              <SetCard
-                key={index}
-                setNumber={index + 1}
-                set={item}
-                exerciseName={exercise.name}
-              />
-            ))}
+        <View style={styles.setsContainer}>
+          <View style={styles.setsHeader}>
+            <Text style={styles.setsHeaderLabel}>SET</Text>
+            <Text style={styles.setsHeaderLabel}>LBS</Text>
+            <Text style={styles.setsHeaderLabel}>REPS</Text>
+            <View style={{ width: 32 }} />
           </View>
-          <Pressable
-            onPress={() => {
-              setCurrentWorkout((prev) => {
-                if (!prev) return prev;
-                return {
-                  ...prev,
-                  exercises: prev.exercises.map((exe) => {
-                    if (exe.name === exercise.name) {
-                      const lastSet =
-                        exe.sets && exe.sets.length > 0
-                          ? exe.sets[exe.sets.length - 1]
-                          : { weight: 0, reps: 0 };
+          
+          {exercise.sets?.map((item, index) => (
+            <SetCard
+              key={index}
+              setNumber={index + 1}
+              set={item}
+              exerciseName={exercise.name}
+            />
+          ))}
 
-                      return {
-                        ...exe,
-                        sets: [...(exe.sets || []), { ...lastSet }],
-                      };
-                    }
-                    return exe
-                  }),
-                };
-              });
-            }}
-          >
-            <Text>Add Set</Text>
+          <Pressable style={styles.addSetButton} onPress={handleAddSet}>
+            <MaterialIcons name="add" size={18} color="black" />
+            <Text style={styles.addSetText}>ADD SET</Text>
           </Pressable>
-        </>
+        </View>
       )}
     </View>
   );
@@ -73,35 +78,58 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "white",
     width: "90%",
-    padding: 10,
-    borderRadius: 10,
-    borderColor: "black",
+    padding: 16,
+    borderRadius: 8,
     borderWidth: 2,
+    borderColor: "black",
+    marginBottom: 12,
     alignSelf: "center",
-    flex: 1,
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
     flexDirection: "row",
-    width: "100%",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
   },
   name: {
-    fontWeight: 600,
-    fontSize: 20,
+    fontWeight: "900",
+    fontSize: 18,
+    textTransform: "uppercase",
   },
-  toggleButton: {
-    width: 36,
-    height: 36,
+  setsContainer: {
+    marginTop: 16,
+    gap: 8,
+  },
+  setsHeader: {
+    flexDirection: "row",
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  setsHeaderLabel: {
+    flex: 1,
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#8E8E93",
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  addSetButton: {
+    marginTop: 12,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 18,
-    backgroundColor: "#f2f2f2",
+    paddingVertical: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "black",
+    borderStyle: "dashed",
+    gap: 4,
+  },
+  addSetText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "black",
+    textTransform: "uppercase",
   },
 });
