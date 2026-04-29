@@ -5,6 +5,7 @@ import {
   Pressable,
   TextInput,
   Alert,
+  Modal,
 } from "react-native";
 import { useAppContext, Set } from "../context/appContext";
 import { useState, useMemo } from "react";
@@ -133,12 +134,11 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
 const styles = StyleSheet.create({
   backgrounder: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    zIndex: 1000,
   },
   modalContent: {
     width: "100%",
@@ -198,6 +198,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 12,
+    marginTop: 24,
   },
   button: {
     paddingVertical: 14,
