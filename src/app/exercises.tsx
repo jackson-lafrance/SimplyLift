@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppContext, Exercise } from "./context/appContext";
 import { MaterialIcons } from "@expo/vector-icons";
+import ProfileHeader from "./components/profileHeader";
 
 const { height } = Dimensions.get("window");
 
@@ -64,7 +65,7 @@ export default function Exercises() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Text style={styles.title}>Exercises</Text>
+      <ProfileHeader title="Exercises" />
       <FlatList
         data={exerciseList}
         keyExtractor={(item) => item.name}
@@ -154,7 +155,10 @@ export default function Exercises() {
 
             <Pressable
               onPress={closeModal}
-              style={styles.closeButton}
+              style={({ hovered }: { hovered: boolean }) => [
+                styles.closeButton,
+                hovered && { backgroundColor: "#34C759", borderColor: "#34C759" }
+              ]}
             >
               <Text style={styles.closeButtonText}>Done</Text>
             </Pressable>
@@ -170,15 +174,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
   },
-  title: {
-    fontSize: 42,
-    fontWeight: "900",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    letterSpacing: -1,
-  },
   listContent: {
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   listItem: {
     backgroundColor: "white",

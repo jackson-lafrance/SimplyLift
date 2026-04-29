@@ -38,169 +38,226 @@ export default function ActiveWorkout() {
   if (!currentWorkout) return null;
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        marginTop: insets.top,
-        marginBottom: insets.bottom,
-      }}
-    >
+    <View style={styles.container}>
       {visible && <NewExercise close={() => setVisible(false)} />}
-      <TextInput
-        maxLength={20}
-        style={styles.title}
-        onChangeText={(text) =>
-          setCurrentWorkout((prev) => (prev ? { ...prev, name: text } : prev))
-        }
-        value={currentWorkout.name}
-      />
-      <Text style={styles.timer}>
-        {String(Math.floor(time / 3600000)).padStart(2, "0")}:
-        {String(Math.floor((time % 3600000) / 60000)).padStart(2, "0")}:
-        {String(Math.floor((time % 60000) / 1000)).padStart(2, "0")}
-      </Text>
+      
+      {/* Top Shelf */}
+      <View style={[styles.topShelf, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.topShelfContent}>
+          <TextInput
+            maxLength={20}
+            style={styles.title}
+            onChangeText={(text) =>
+              setCurrentWorkout((prev) => (prev ? { ...prev, name: text } : prev))
+            }
+            value={currentWorkout.name}
+          />
+          <View style={styles.timerContainer}>
+            <MaterialIcons name="timer" size={16} color="black" />
+            <Text style={styles.timer}>
+              {String(Math.floor(time / 3600000)).padStart(2, "0")}:
+              {String(Math.floor((time % 3600000) / 60000)).padStart(2, "0")}:
+              {String(Math.floor((time % 60000) / 1000)).padStart(2, "0")}
+            </Text>
+          </View>
+        </View>
+      </View>
+
       <FlatList
         data={currentWorkout.exercises}
         renderItem={({ item }) => (
-          <View style={{ width: "100%", alignItems: "center", margin: 10 }}>
+          <View style={styles.exerciseWrapper}>
             <ExerciseCard exercise={item} />
           </View>
         )}
-        style={{ width: "100%" }}
-        contentContainerStyle={{ paddingBottom: 150 }}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
       />
 
-      <View
-        style={{
-          position: "absolute",
-          bottom: insets.bottom + 10,
-          alignItems: "center",
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          zIndex: 10,
-          width: "90%",
-          gap: 10,
-        }}
-      >
-        <Pressable
-          onPress={() => {
-            Alert.alert("Cancel Workout", "Are you sure you want to quit?", [
-              {
-                text: "Keep Going",
-                onPress: () => "",
-                style: "cancel",
-              },
-              {
-                text: "Cancel Workout",
-                onPress: () => setCurrentWorkout(null),
-                style: "destructive",
-              },
-            ]);
-          }}
-          style={[styles.smallButton, { backgroundColor: "white" }]}
-        >
-          <MaterialIcons name="close" size={24} color="black" />
-        </Pressable>
-        <Pressable
-          style={styles.bigButton}
-          onPress={() => {
-            setVisible(true);
-          }}
-        >
-          <Text style={styles.buttonText}>Add Exercise</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            Alert.alert("Submit Workout", "Are you finished your workout?", [
-              {
-                text: "Keep Going",
-                onPress: () => "",
-                style: "cancel",
-              },
-              {
-                text: "Submit Workout",
-                onPress: () => {
-                  setHistory((prev) => [
-                    ...prev,
-                    {
-                      ...currentWorkout,
-                      time:
-                        new Date().getTime() - currentWorkout.date.getTime(),
-                    },
-                  ]);
-
-                  setExerciseList((prev) => {
-                    const newExercises = currentWorkout.exercises.filter(
-                      (workoutExercise) =>
-                        !prev.some(
-                          (ex) =>
-                            ex.name.toLowerCase() ===
-                            workoutExercise.name.toLowerCase(),
-                        ),
-                    );
-
-                    const uniqueNew = newExercises.map((ex) => ({
-                      name: ex.name,
-                    }));
-
-                    return [...prev, ...uniqueNew];
-                  });
-
-                  setCurrentWorkout(null);
+      {/* Bottom Shelf */}
+      <View style={[styles.bottomShelf, { paddingBottom: insets.bottom + 10 }]}>
+        <View style={styles.bottomShelfContent}>
+          <Pressable
+            onPress={() => {
+              Alert.alert("Cancel Workout", "Are you sure you want to quit?", [
+                {
+                  text: "Keep Going",
+                  style: "cancel",
                 },
-                style: "destructive",
-              },
-            ]);
-          }}
-          style={[styles.smallButton, { backgroundColor: "black" }]}
-        >
-          <MaterialIcons name="check" size={24} color="white" />
-        </Pressable>
+                {
+                  text: "Cancel Workout",
+                  onPress: () => setCurrentWorkout(null),
+                  style: "destructive",
+                },
+              ]);
+            }}
+            style={styles.shelfButton}
+          >
+            {({ hovered }: { hovered: boolean }) => (
+              <>
+                <MaterialIcons 
+                  name="close" 
+                  size={24} 
+                  color={hovered ? "#FF3B30" : "black"} 
+                />
+                <Text style={[styles.shelfButtonLabel, hovered && { color: "#FF3B30" }]}>Quit</Text>
+              </>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.mainActionButton}
+            onPress={() => setVisible(true)}
+          >
+            <Text style={styles.mainActionButtonText}>Add Exercise</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              Alert.alert("Submit Workout", "Are you finished your workout?", [
+                {
+                  text: "Keep Going",
+                  style: "cancel",
+                },
+                {
+                  text: "Submit Workout",
+                  onPress: () => {
+                    setHistory((prev) => [
+                      ...prev,
+                      {
+                        ...currentWorkout,
+                        time: new Date().getTime() - currentWorkout.date.getTime(),
+                      },
+                    ]);
+
+                    setExerciseList((prev) => {
+                      const newExercises = currentWorkout.exercises.filter(
+                        (workoutExercise) =>
+                          !prev.some(
+                            (ex) =>
+                              ex.name.toLowerCase() ===
+                              workoutExercise.name.toLowerCase(),
+                          ),
+                      );
+                      const uniqueNew = newExercises.map((ex) => ({
+                        name: ex.name,
+                      }));
+                      return [...prev, ...uniqueNew];
+                    });
+                    setCurrentWorkout(null);
+                  },
+                  style: "destructive",
+                },
+              ]);
+            }}
+            style={styles.shelfButton}
+          >
+            {({ hovered }: { hovered: boolean }) => (
+              <>
+                <MaterialIcons 
+                  name="check" 
+                  size={24} 
+                  color={hovered ? "#34C759" : "black"} 
+                />
+                <Text style={[styles.shelfButtonLabel, hovered && { color: "#34C759" }]}>Finish</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  topShelf: {
+    backgroundColor: "white",
+    borderBottomWidth: 2,
+    borderBottomColor: "black",
+  },
+  topShelfContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    height: 80,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "900",
     textTransform: "uppercase",
-    letterSpacing: -0.5,
+    flex: 1,
+  },
+  timerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   timer: {
     fontFamily: "ui-monospace",
-    fontSize: 32,
+    fontSize: 16,
     fontWeight: "800",
-    padding: 10,
     color: "black",
   },
-  smallButton: {
-    width: 60,
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingVertical: 20,
+    paddingBottom: 180,
+  },
+  exerciseWrapper: {
+    width: "100%",
+    alignItems: "center",
+  },
+  bottomShelf: {
+    backgroundColor: "white",
+    borderTopWidth: 2,
+    borderTopColor: "black",
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  bottomShelfContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
     height: 60,
+  },
+  shelfButton: {
     alignItems: "center",
     justifyContent: "center",
+    minWidth: 60,
+  },
+  shelfButtonLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 4,
+    textTransform: "uppercase",
+    color: "black",
+  },
+  mainActionButton: {
+    flex: 1,
+    backgroundColor: "black",
+    paddingVertical: 16,
     borderRadius: 8,
+    alignItems: "center",
     borderWidth: 2,
     borderColor: "black",
   },
-  buttonText: {
+  mainActionButtonText: {
+    color: "white",
     fontSize: 14,
     fontWeight: "900",
-    color: "white",
     textTransform: "uppercase",
-  },
-  bigButton: {
-    flex: 1,
-    height: 60,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "black",
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "black",
+    letterSpacing: 1,
   },
 });

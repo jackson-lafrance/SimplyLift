@@ -88,7 +88,13 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           })
         }
       >
-        <MaterialIcons name="close" size={16} color="#8E8E93" />
+        {({ hovered }: { hovered: boolean }) => (
+          <MaterialIcons 
+            name="close" 
+            size={16} 
+            color={hovered ? "#FF3B30" : "#8E8E93"} 
+          />
+        )}
       </Pressable>
     </View>
   );

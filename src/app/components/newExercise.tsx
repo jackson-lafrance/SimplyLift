@@ -130,7 +130,11 @@ export default function NewExercise({ close }: NewExerciseParams) {
             </Pressable>
 
             <Pressable
-              style={[styles.button, styles.submitButton]}
+              style={({ hovered }: { hovered: boolean }) => [
+                styles.button, 
+                styles.submitButton,
+                hovered && { backgroundColor: "#34C759", borderColor: "#34C759" }
+              ]}
               onPress={() => {
                 if (!exerciseName.trim()) return;
 

@@ -15,6 +15,7 @@ import WorkoutCard from "./components/workoutCard";
 import { useAppContext, Workout } from "./context/appContext";
 import { useState, useRef, useEffect } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
+import ProfileHeader from "./components/profileHeader";
 
 const { height } = Dimensions.get("window");
 
@@ -87,7 +88,7 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <Text style={styles.title}>SimplyLift</Text>
+      <ProfileHeader title="SimplyLift" />
       
       <FlatList
         data={[...history].sort((a, b) => b.date.getTime() - a.date.getTime())}
@@ -131,7 +132,13 @@ export default function Index() {
               </View>
               <View style={{ flexDirection: "row", gap: 16 }}>
                 <Pressable onPress={deleteWorkout}>
-                  <MaterialIcons name="delete-outline" size={28} color="#FF3B30" />
+                  {({ hovered }: { hovered: boolean }) => (
+                    <MaterialIcons 
+                      name="delete-outline" 
+                      size={28} 
+                      color={hovered ? "#FF3B30" : "black"} 
+                    />
+                  )}
                 </Pressable>
                 <Pressable onPress={closeModal}>
                   <MaterialIcons name="close" size={28} color="black" />
@@ -174,7 +181,10 @@ export default function Index() {
 
             <Pressable
               onPress={closeModal}
-              style={styles.doneButton}
+              style={({ hovered }: { hovered: boolean }) => [
+                styles.doneButton,
+                hovered && { backgroundColor: "#34C759", borderColor: "#34C759" }
+              ]}
             >
               <Text style={styles.doneButtonText}>Done</Text>
             </Pressable>
@@ -190,16 +200,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
   },
-  title: {
-    fontSize: 42,
-    fontWeight: "900",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    letterSpacing: -1,
-  },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 250,
+    paddingBottom: 180,
+    paddingTop: 16,
   },
   modalOverlay: {
     flex: 1,
