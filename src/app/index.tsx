@@ -8,7 +8,6 @@ import {
   ScrollView,
   Animated,
   Dimensions,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WorkoutCard from "./components/workoutCard";
@@ -20,7 +19,7 @@ import ProfileHeader from "./components/profileHeader";
 const { height } = Dimensions.get("window");
 
 export default function Index() {
-  const { history, setHistory } = useAppContext();
+  const { history, setHistory, showAlert } = useAppContext();
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -47,7 +46,7 @@ export default function Index() {
   };
 
   const deleteWorkout = () => {
-    Alert.alert(
+    showAlert(
       "Delete Workout",
       "Are you sure you want to delete this workout? This action cannot be undone.",
       [
@@ -132,11 +131,11 @@ export default function Index() {
               </View>
               <View style={{ flexDirection: "row", gap: 16 }}>
                 <Pressable onPress={deleteWorkout}>
-                  {({ hovered }: { hovered: boolean }) => (
+                  {({ pressed }: { pressed: boolean }) => (
                     <MaterialIcons 
                       name="delete-outline" 
                       size={28} 
-                      color={hovered ? "#FF3B30" : "black"} 
+                      color={pressed ? "#FF3B30" : "black"} 
                     />
                   )}
                 </Pressable>
@@ -181,9 +180,9 @@ export default function Index() {
 
             <Pressable
               onPress={closeModal}
-              style={({ hovered }: { hovered: boolean }) => [
+              style={({ pressed }: { pressed: boolean }) => [
                 styles.doneButton,
-                hovered && { backgroundColor: "#34C759", borderColor: "#34C759" }
+                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
               ]}
             >
               <Text style={styles.doneButtonText}>Done</Text>

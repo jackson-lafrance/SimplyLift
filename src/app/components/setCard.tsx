@@ -88,11 +88,11 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           })
         }
       >
-        {({ hovered }: { hovered: boolean }) => (
+        {({ pressed }: { pressed: boolean }) => (
           <MaterialIcons 
             name="close" 
             size={16} 
-            color={hovered ? "#FF3B30" : "#8E8E93"} 
+            color={pressed ? "#FF3B30" : "#8E8E93"} 
           />
         )}
       </Pressable>

@@ -4,7 +4,6 @@ import {
   Text,
   View,
   TextInput,
-  Alert,
   FlatList,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,7 +14,7 @@ import ExerciseCard from "./exerciseCard";
 import NewExercise from "./newExercise";
 
 export default function ActiveWorkout() {
-  const { currentWorkout, setCurrentWorkout, setHistory, setExerciseList } =
+  const { currentWorkout, setCurrentWorkout, setHistory, setExerciseList, showAlert } =
     useAppContext();
   const insets = useSafeAreaInsets();
 
@@ -79,28 +78,28 @@ export default function ActiveWorkout() {
         <View style={styles.bottomShelfContent}>
           <Pressable
             onPress={() => {
-              Alert.alert("Cancel Workout", "Are you sure you want to quit?", [
+              showAlert("Cancel Workout", "Are you sure you want to quit?", [
                 {
                   text: "Keep Going",
-                  style: "cancel",
+                  style: "default",
                 },
                 {
                   text: "Cancel Workout",
                   onPress: () => setCurrentWorkout(null),
-                  style: "destructive",
+                  style: "cancel",
                 },
               ]);
             }}
             style={styles.shelfButton}
           >
-            {({ hovered }: { hovered: boolean }) => (
+            {({ pressed }: { pressed: boolean }) => (
               <>
                 <MaterialIcons 
                   name="close" 
                   size={24} 
-                  color={hovered ? "#FF3B30" : "black"} 
+                  color={pressed ? "#FF3B30" : "black"} 
                 />
-                <Text style={[styles.shelfButtonLabel, hovered && { color: "#FF3B30" }]}>Quit</Text>
+                <Text style={[styles.shelfButtonLabel, pressed && { color: "#FF3B30" }]}>Quit</Text>
               </>
             )}
           </Pressable>
@@ -114,7 +113,7 @@ export default function ActiveWorkout() {
 
           <Pressable
             onPress={() => {
-              Alert.alert("Submit Workout", "Are you finished your workout?", [
+              showAlert("Submit Workout", "Are you finished your workout?", [
                 {
                   text: "Keep Going",
                   style: "cancel",
@@ -152,14 +151,14 @@ export default function ActiveWorkout() {
             }}
             style={styles.shelfButton}
           >
-            {({ hovered }: { hovered: boolean }) => (
+            {({ pressed }: { pressed: boolean }) => (
               <>
                 <MaterialIcons 
                   name="check" 
                   size={24} 
-                  color={hovered ? "#34C759" : "black"} 
+                  color={pressed ? "#34C759" : "black"} 
                 />
-                <Text style={[styles.shelfButtonLabel, hovered && { color: "#34C759" }]}>Finish</Text>
+                <Text style={[styles.shelfButtonLabel, pressed && { color: "#34C759" }]}>Finish</Text>
               </>
             )}
           </Pressable>

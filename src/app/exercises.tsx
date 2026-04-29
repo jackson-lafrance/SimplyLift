@@ -155,9 +155,9 @@ export default function Exercises() {
 
             <Pressable
               onPress={closeModal}
-              style={({ hovered }: { hovered: boolean }) => [
+              style={({ pressed }: { pressed: boolean }) => [
                 styles.closeButton,
-                hovered && { backgroundColor: "#34C759", borderColor: "#34C759" }
+                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
               ]}
             >
               <Text style={styles.closeButtonText}>Done</Text>

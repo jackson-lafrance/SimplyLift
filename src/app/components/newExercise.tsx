@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   TextInput,
-  Alert,
   Modal,
   Animated,
   Dimensions,
@@ -19,7 +18,7 @@ interface NewExerciseParams {
 }
 
 export default function NewExercise({ close }: NewExerciseParams) {
-  const { setCurrentWorkout, currentWorkout, exerciseList, history } =
+  const { setCurrentWorkout, currentWorkout, exerciseList, history, showAlert } =
     useAppContext();
 
   const [exerciseName, setExerciseName] = useState<string>("");
@@ -130,10 +129,10 @@ export default function NewExercise({ close }: NewExerciseParams) {
             </Pressable>
 
             <Pressable
-              style={({ hovered }: { hovered: boolean }) => [
+              style={({ pressed }: { pressed: boolean }) => [
                 styles.button, 
                 styles.submitButton,
-                hovered && { backgroundColor: "#34C759", borderColor: "#34C759" }
+                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
               ]}
               onPress={() => {
                 if (!exerciseName.trim()) return;
@@ -143,7 +142,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
                 );
 
                 if (exists) {
-                  Alert.alert("Exercise Already Added", "Use the add set button!");
+                  showAlert("Exercise Already Added", "Use the add set button!");
                   return;
                 }
 

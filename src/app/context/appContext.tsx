@@ -8,6 +8,7 @@ import {
   SetStateAction,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomAlert, { AlertButton } from "../components/customAlert";
 
 export interface Set {
   reps: number;
@@ -33,6 +34,7 @@ interface AppContextType {
   setExerciseList: Dispatch<SetStateAction<Exercise[]>>;
   history: Workout[];
   setHistory: Dispatch<SetStateAction<Workout[]>>;
+  showAlert: (title: string, message?: string, buttons?: AlertButton[]) => void;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
@@ -42,6 +44,30 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
   const [history, setHistory] = useState<Workout[]>([]);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
+
+  // Alert state
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message?: string;
+    buttons?: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+  });
+
+  const showAlert = (title: string, message?: string, buttons?: AlertButton[]) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      buttons,
+    });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     const loadWorkoutData = async () => {
@@ -94,9 +120,17 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setExerciseList,
         history,
         setHistory,
+        showAlert,
       }}
     >
       {children}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+      />
     </AppContext.Provider>
   );
 }
