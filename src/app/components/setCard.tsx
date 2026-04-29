@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TextInput } from "react-native";
+import { StyleSheet, View, Text, TextInput, Pressable } from "react-native";
 import { Set, useAppContext } from "../context/appContext";
 import { useState } from "react";
 
@@ -11,8 +11,8 @@ export interface setProps {
 export default function SetCard({ set, setNumber, exerciseName }: setProps) {
   const { currentWorkout, setCurrentWorkout } = useAppContext();
 
-  const [weightText, setWeightText] = useState(set?.weight.toString() || 0);
-  const [repText, setRepText] = useState(set?.reps.toString() || 0);
+  const [weightText, setWeightText] = useState(set?.weight.toString() || "0");
+  const [repText, setRepText] = useState(set?.reps.toString() || "0");
 
   const handleUpdate = (value: string, field: "weight" | "reps") => {
     if (field === "weight") setWeightText(value);
@@ -60,6 +60,29 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
         }}
         value={repText}
       />
+      <Pressable
+        onPress={() =>
+          setCurrentWorkout((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              exercises: prev.exercises.map((exe) => {
+                if (exe.name === exerciseName) {
+                  return {
+                    ...exe,
+                    sets: exe.sets
+                      ? exe.sets.filter((_, index) => index !== setNumber - 1)
+                      : exe.sets,
+                  };
+                }
+                return exe;
+              }),
+            };
+          })
+        }
+      >
+        <Text>-</Text>
+      </Pressable>
     </View>
   );
 }

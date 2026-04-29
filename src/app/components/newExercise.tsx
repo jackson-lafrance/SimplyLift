@@ -18,7 +18,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
     useAppContext();
 
   const [exerciseName, setExerciseName] = useState<string>("");
-  const [defaultSet, setDefaultSet] = useState<Set>({ reps: 0, weight: 0 });
+  const [defaultSet, setDefaultSet] = useState<Set[]>([{ reps: 0, weight: 0 }]);
 
   const suggestions = useMemo(() => {
     if (!exerciseName.trim()) return [];
@@ -31,7 +31,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
       .slice(0, 5);
   }, [exerciseName, exerciseList]);
 
-  const findMostRecentSet = (name: string) => {
+  const findMostRecentSets = (name: string) => {
     const sortedHistory = [...history].sort(
       (a, b) => b.date.getTime() - a.date.getTime(),
     );
@@ -41,15 +41,15 @@ export default function NewExercise({ close }: NewExerciseParams) {
         (e) => e.name.toLowerCase() === name.toLowerCase(),
       );
       if (exercise && exercise.sets && exercise.sets.length > 0) {
-        return { ...exercise.sets[exercise.sets.length - 1] };
+        return exercise.sets;
       }
     }
-    return { reps: 0, weight: 0 };
+    return [{ reps: 0, weight: 0 }];
   };
 
   const handleSelectExercise = (name: string) => {
     setExerciseName(name);
-    const recentSet = findMostRecentSet(name);
+    const recentSet = findMostRecentSets(name);
     setDefaultSet(recentSet);
   };
 
@@ -65,7 +65,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
             const exactMatch = exerciseList.find(
               (e) => e.name.toLowerCase() === text.toLowerCase(),
             );
-            if (exactMatch) setDefaultSet(findMostRecentSet(exactMatch.name));
+            if (exactMatch) setDefaultSet(findMostRecentSets(exactMatch.name));
           }}
           value={exerciseName}
         />
@@ -104,7 +104,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
               if (exists) {
                 Alert.alert(
                   "Exercise Already Added",
-                  "You have already added this exercise to your workout. Add more sets directly to the existing card instead.",
+                  "Use the add set button!",
                 );
                 return;
               }
@@ -115,7 +115,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
                       ...prev,
                       exercises: [
                         ...prev.exercises,
-                        { name: exerciseName, sets: [defaultSet] },
+                        { name: exerciseName, sets: defaultSet },
                       ],
                     }
                   : prev,
