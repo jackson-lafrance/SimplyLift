@@ -68,7 +68,7 @@ export default function ActiveWorkout() {
           </View>
         )}
         style={{ width: "100%" }}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 150 }}
       />
 
       <View

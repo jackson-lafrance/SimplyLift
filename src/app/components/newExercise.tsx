@@ -55,80 +55,84 @@ export default function NewExercise({ close }: NewExerciseParams) {
   };
 
   return (
-    <View style={styles.backgrounder}>
-      <View style={styles.modalContent}>
-        <Text style={styles.label}>Exercise Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Bench Press"
-          onChangeText={(text) => {
-            setExerciseName(text);
-            const exactMatch = exerciseList.find(
-              (e) => e.name.toLowerCase() === text.toLowerCase(),
-            );
-            if (exactMatch) setDefaultSet(findMostRecentSets(exactMatch.name));
-          }}
-          value={exerciseName}
-        />
-
-        {suggestions.length > 0 && (
-          <View style={styles.suggestionsContainer}>
-            {suggestions.map((item, index) => (
-              <Pressable
-                key={index}
-                style={styles.suggestionItem}
-                onPress={() => handleSelectExercise(item.name)}
-              >
-                <Text style={styles.suggestionText}>{item.name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.buttonContainer}>
-          <Pressable
-            style={[styles.button, styles.cancelButton]}
-            onPress={close}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.button, styles.submitButton]}
-            onPress={() => {
-              if (!exerciseName.trim()) return;
-
-              const exists = currentWorkout?.exercises.some(
-                (e) => e.name.toLowerCase() === exerciseName.toLowerCase(),
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={true}
+      onRequestClose={close}
+    >
+      <View style={styles.backgrounder}>
+        <View style={styles.modalContent}>
+          <Text style={styles.label}>Exercise Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Bench Press"
+            onChangeText={(text) => {
+              setExerciseName(text);
+              const exactMatch = exerciseList.find(
+                (e) => e.name.toLowerCase() === text.toLowerCase(),
               );
-
-              if (exists) {
-                Alert.alert(
-                  "Exercise Already Added",
-                  "Use the add set button!",
-                );
-                return;
-              }
-
-              setCurrentWorkout((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      exercises: [
-                        ...prev.exercises,
-                        { name: exerciseName, sets: defaultSet },
-                      ],
-                    }
-                  : prev,
-              );
-              close();
+              if (exactMatch) setDefaultSet(findMostRecentSets(exactMatch.name));
             }}
-          >
-            <Text style={styles.submitButtonText}>Add Exercise</Text>
-          </Pressable>
+            value={exerciseName}
+          />
+
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((item, index) => (
+                <Pressable
+                  key={index}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSelectExercise(item.name)}
+                >
+                  <Text style={styles.suggestionText}>{item.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <View style={styles.buttonContainer}>
+            <Pressable
+              style={[styles.button, styles.cancelButton]}
+              onPress={close}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.button, styles.submitButton]}
+              onPress={() => {
+                if (!exerciseName.trim()) return;
+
+                const exists = currentWorkout?.exercises.some(
+                  (e) => e.name.toLowerCase() === exerciseName.toLowerCase(),
+                );
+
+                if (exists) {
+                  Alert.alert("Exercise Already Added", "Use the add set button!");
+                  return;
+                }
+
+                setCurrentWorkout((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        exercises: [
+                          ...prev.exercises,
+                          { name: exerciseName, sets: defaultSet },
+                        ],
+                      }
+                    : prev,
+                );
+                close();
+              }}
+            >
+              <Text style={styles.submitButtonText}>Add Exercise</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
