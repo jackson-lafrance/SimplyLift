@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { StyleSheet, View, Text, FlatList, Pressable } from "react-native";
-import { Exercise } from "../context/appContext";
+import { Exercise, useAppContext } from "../context/appContext";
 import SetCard from "./setCard";
 import { useState } from "react";
 
@@ -10,6 +10,8 @@ export interface ExerciseCardProps {
 
 export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   const [dropdowned, setDropdowned] = useState(false);
+  const { setCurrentWorkout } = useAppContext();
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -26,16 +28,44 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
         </Pressable>
       </View>
       {!dropdowned && (
-        <View style={{ width: "100%" }}>
-          {exercise.sets?.map((item, index) => (
-            <SetCard
-              key={index}
-              setNumber={index + 1}
-              set={item}
-              exerciseName={exercise.name}
-            />
-          ))}
-        </View>
+        <>
+          <View style={{ width: "100%" }}>
+            {exercise.sets?.map((item, index) => (
+              <SetCard
+                key={index}
+                setNumber={index + 1}
+                set={item}
+                exerciseName={exercise.name}
+              />
+            ))}
+          </View>
+          <Pressable
+            onPress={() => {
+              setCurrentWorkout((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  exercises: prev.exercises.map((exe) => {
+                    if (exe.name === exercise.name) {
+                      const lastSet =
+                        exe.sets && exe.sets.length > 0
+                          ? exe.sets[exe.sets.length - 1]
+                          : { weight: 0, reps: 0 };
+
+                      return {
+                        ...exe,
+                        sets: [...(exe.sets || []), { ...lastSet }],
+                      };
+                    }
+                    return exe
+                  }),
+                };
+              });
+            }}
+          >
+            <Text>Add Set</Text>
+          </Pressable>
+        </>
       )}
     </View>
   );
