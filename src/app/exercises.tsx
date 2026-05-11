@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAppContext, Exercise } from "./context/appContext";
+import { useAppContext, ExerciseListItem } from "./context/appContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProfileHeader from "./components/profileHeader";
 
@@ -20,7 +20,7 @@ export default function Exercises() {
   const { exerciseList, history } = useAppContext();
 
   // Track which exercise is clicked to decide visibility
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseListItem | null>(
     null,
   );
 
@@ -35,7 +35,7 @@ export default function Exercises() {
         friction: 12,
       }).start();
     }
-  }, [selectedExercise]);
+  }, [selectedExercise, slideAnim]);
 
   const closeModal = () => {
     Animated.timing(slideAnim, {
@@ -68,7 +68,7 @@ export default function Exercises() {
       <ProfileHeader title="Exercises" />
       <FlatList
         data={exerciseList}
-        keyExtractor={(item) => item.name}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <Pressable

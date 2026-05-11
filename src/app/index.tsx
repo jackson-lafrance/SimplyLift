@@ -19,7 +19,7 @@ import ProfileHeader from "./components/profileHeader";
 const { height } = Dimensions.get("window");
 
 export default function Index() {
-  const { history, setHistory, showAlert } = useAppContext();
+  const { history, deleteWorkout: deleteWorkoutRecord, showAlert } = useAppContext();
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -33,7 +33,7 @@ export default function Index() {
         friction: 12,
       }).start();
     }
-  }, [selectedWorkout]);
+  }, [selectedWorkout, slideAnim]);
 
   const closeModal = () => {
     Animated.timing(slideAnim, {
@@ -46,6 +46,13 @@ export default function Index() {
   };
 
   const deleteWorkout = () => {
+    const workoutId = selectedWorkout?.id;
+
+    if (!workoutId) {
+      showAlert("Delete Unavailable", "This workout does not have a Firestore id.");
+      return;
+    }
+
     showAlert(
       "Delete Workout",
       "Are you sure you want to delete this workout? This action cannot be undone.",
@@ -60,13 +67,7 @@ export default function Index() {
               duration: 200,
               useNativeDriver: true,
             }).start(() => {
-              setHistory((prev) =>
-                prev.filter(
-                  (w) =>
-                    w.date.getTime() !== selectedWorkout?.date.getTime() ||
-                    w.name !== selectedWorkout?.name,
-                ),
-              );
+              void deleteWorkoutRecord(workoutId);
               setSelectedWorkout(null);
             });
           },
@@ -96,7 +97,7 @@ export default function Index() {
             <WorkoutCard workout={item} />
           </Pressable>
         )}
-        keyExtractor={(item, index) => `${item.name}-${index}`}
+        keyExtractor={(item, index) => item.id ?? `${item.name}-${index}`}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>

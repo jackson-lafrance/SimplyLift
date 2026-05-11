@@ -12,7 +12,7 @@ import Settings from "./settings";
 export default function Tabs() {
   const [activeTab, setActiveTab] = useState<"home" | "exercises" | "settings">("home");
   const insets = useSafeAreaInsets();
-  const { setCurrentWorkout } = useAppContext();
+  const { startWorkout } = useAppContext();
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -33,17 +33,7 @@ export default function Tabs() {
       {/* Unified Bottom Shelf */}
       <View style={[styles.shelf, { paddingBottom: insets.bottom + 10 }]}>
         {/* Start Workout Button */}
-        <Pressable
-          style={styles.startButton}
-          onPress={() =>
-            setCurrentWorkout({
-              name: "New Workout",
-              time: 0,
-              date: new Date(),
-              exercises: [],
-            })
-          }
-        >
+        <Pressable style={styles.startButton} onPress={startWorkout}>
           <Text style={styles.startButtonText}>Start Workout</Text>
         </Pressable>
 

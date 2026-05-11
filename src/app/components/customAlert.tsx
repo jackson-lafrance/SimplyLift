@@ -48,7 +48,6 @@ export default function CustomAlert({
           
           <View style={styles.buttonContainer}>
             {defaultButtons.map((btn, index) => {
-              const isDestructive = btn.style === "destructive";
               const isCancel = btn.style === "cancel";
               
               return (

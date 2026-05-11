@@ -1,10 +1,10 @@
 import { StyleSheet, View, Text, TextInput, Pressable } from "react-native";
-import { Set, useAppContext } from "../context/appContext";
+import { WorkoutSet, useAppContext } from "../context/appContext";
 import { useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 
 export interface setProps {
-  set: Set;
+  set: WorkoutSet;
   setNumber: number;
   exerciseName: string;
 }

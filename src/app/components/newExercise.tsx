@@ -8,7 +8,7 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
-import { useAppContext, Set } from "../context/appContext";
+import { useAppContext, WorkoutSet } from "../context/appContext";
 import { useState, useMemo, useRef, useEffect } from "react";
 
 const { height } = Dimensions.get("window");
@@ -22,7 +22,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
     useAppContext();
 
   const [exerciseName, setExerciseName] = useState<string>("");
-  const [defaultSet, setDefaultSet] = useState<Set[]>([{ reps: 0, weight: 0 }]);
+  const [defaultSet, setDefaultSet] = useState<WorkoutSet[]>([{ reps: 0, weight: 0 }]);
 
   const slideAnim = useRef(new Animated.Value(height)).current;
 
@@ -33,7 +33,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
       tension: 60,
       friction: 12,
     }).start();
-  }, []);
+  }, [slideAnim]);
 
   const handleClose = () => {
     Animated.timing(slideAnim, {

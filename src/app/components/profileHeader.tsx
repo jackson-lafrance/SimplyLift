@@ -1,6 +1,16 @@
-import { StyleSheet, View, Text, Pressable, Modal, Animated, Dimensions } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAppContext } from "../context/appContext";
 
 const { height } = Dimensions.get("window");
 
@@ -9,6 +19,7 @@ interface ProfileHeaderProps {
 }
 
 export default function ProfileHeader({ title }: ProfileHeaderProps) {
+  const { authUser, logout, isAuthBusy } = useAppContext();
   const [visible, setVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(height)).current;
 
@@ -21,7 +32,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
         friction: 12,
       }).start();
     }
-  }, [visible]);
+  }, [slideAnim, visible]);
 
   const handleClose = () => {
     Animated.timing(slideAnim, {
@@ -33,14 +44,18 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
     });
   };
 
+  const handleLogout = async () => {
+    const success = await logout();
+    if (success) {
+      handleClose();
+    }
+  };
+
   return (
     <View style={styles.shelf}>
       <Text style={styles.title}>{title}</Text>
-      <Pressable 
-        style={({ pressed }) => [
-          styles.profileItem,
-          pressed && styles.profileItemPressed
-        ]} 
+      <Pressable
+        style={({ pressed }) => [styles.profileItem, pressed && styles.profileItemPressed]}
         onPress={() => setVisible(true)}
       >
         <MaterialIcons name="person" size={28} color="black" />
@@ -49,16 +64,13 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
 
       <Modal
         visible={visible}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={handleClose}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View 
-            style={[
-              styles.modalContent,
-              { transform: [{ translateY: slideAnim }] }
-            ]}
+          <Animated.View
+            style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}
           >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Profile</Text>
@@ -68,14 +80,33 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
             </View>
 
             <View style={styles.profileContent}>
-              <Text style={styles.popoverText}>SimplyLift v1.0.0</Text>
+              <Text style={styles.label}>Signed In As</Text>
+              <Text style={styles.emailText}>{authUser?.email ?? "Unknown user"}</Text>
             </View>
+
+            <Pressable
+              disabled={isAuthBusy}
+              onPress={() => {
+                void handleLogout();
+              }}
+              style={({ pressed }) => [
+                styles.signOutButton,
+                pressed && !isAuthBusy && styles.signOutButtonPressed,
+                isAuthBusy && styles.disabledButton,
+              ]}
+            >
+              {isAuthBusy ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.signOutButtonText}>Sign Out</Text>
+              )}
+            </Pressable>
 
             <Pressable
               onPress={handleClose}
               style={({ pressed }) => [
                 styles.doneButton,
-                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
+                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" },
               ]}
             >
               <Text style={styles.doneButtonText}>Done</Text>
@@ -149,17 +180,21 @@ const styles = StyleSheet.create({
   },
   profileContent: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  popoverText: {
-    fontSize: 18,
+  label: {
+    fontSize: 10,
     fontWeight: "900",
-    color: "black",
+    color: "#8E8E93",
+    marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-  doneButton: {
+  emailText: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "black",
+  },
+  signOutButton: {
     backgroundColor: "black",
     paddingVertical: 16,
     borderRadius: 8,
@@ -168,8 +203,30 @@ const styles = StyleSheet.create({
     borderColor: "black",
     marginTop: 20,
   },
-  doneButtonText: {
+  signOutButtonPressed: {
+    backgroundColor: "#FF3B30",
+    borderColor: "#FF3B30",
+  },
+  signOutButtonText: {
     color: "white",
+    fontSize: 16,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  doneButton: {
+    backgroundColor: "white",
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "black",
+    marginTop: 12,
+  },
+  doneButtonText: {
+    color: "black",
     fontSize: 16,
     fontWeight: "900",
     textTransform: "uppercase",
