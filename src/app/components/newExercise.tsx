@@ -33,7 +33,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
       tension: 60,
       friction: 12,
     }).start();
-  }, []);
+  }, [slideAnim]);
 
   const handleClose = () => {
     Animated.timing(slideAnim, {

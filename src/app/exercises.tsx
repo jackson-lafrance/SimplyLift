@@ -35,7 +35,7 @@ export default function Exercises() {
         friction: 12,
       }).start();
     }
-  }, [selectedExercise]);
+  }, [selectedExercise, slideAnim]);
 
   const closeModal = () => {
     Animated.timing(slideAnim, {

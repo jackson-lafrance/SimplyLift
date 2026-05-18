@@ -21,7 +21,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
         friction: 12,
       }).start();
     }
-  }, [visible]);
+  }, [visible, slideAnim]);
 
   const handleClose = () => {
     Animated.timing(slideAnim, {

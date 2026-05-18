@@ -62,7 +62,8 @@ export default function CustomAlert({
                     styles.button,
                     isCancel ? styles.cancelButton : styles.defaultButton,
                     pressed && isCancel && { backgroundColor: "#FF3B30", borderColor: "#FF3B30" },
-                    pressed && !isCancel && { backgroundColor: "#34C759", borderColor: "#34C759" },
+                    pressed && isDestructive && { backgroundColor: "#FF3B30", borderColor: "#FF3B30" },
+                    pressed && !isCancel && !isDestructive && { backgroundColor: "#34C759", borderColor: "#34C759" },
                   ]}
                 >
                   {({ pressed }) => (

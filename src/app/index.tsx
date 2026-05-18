@@ -33,7 +33,7 @@ export default function Index() {
         friction: 12,
       }).start();
     }
-  }, [selectedWorkout]);
+  }, [selectedWorkout, slideAnim]);
 
   const closeModal = () => {
     Animated.timing(slideAnim, {
