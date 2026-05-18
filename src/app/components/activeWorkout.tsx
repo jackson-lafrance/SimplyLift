@@ -61,7 +61,6 @@ export default function ActiveWorkout() {
     >
       {visible && <NewExercise close={() => setVisible(false)} />}
 
-      {/* Top Shelf */}
       <View style={[styles.topShelf, { paddingTop: insets.top + 12 }]}>
         <View style={styles.topShelfContent}>
           <TextInput
@@ -99,7 +98,6 @@ export default function ActiveWorkout() {
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       />
 
-      {/* Bottom Shelf */}
       {!isKeyboardVisible && (
         <View style={[styles.bottomShelf, { paddingBottom: insets.bottom + 10 }]}>
           <View style={styles.bottomShelfContent}>
