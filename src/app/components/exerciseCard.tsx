@@ -10,7 +10,7 @@ export interface ExerciseCardProps {
 
 export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   const [dropdowned, setDropdowned] = useState(false);
-  const { setCurrentWorkout } = useAppContext();
+  const { setCurrentWorkout, showAlert } = useAppContext();
 
   const handleAddSet = () => {
     setCurrentWorkout((prev) => {
@@ -34,19 +34,60 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
     });
   };
 
+  const handleRemoveExercise = () => {
+    showAlert(
+      "Remove Exercise",
+      `Remove ${exercise.name} from this workout?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            setCurrentWorkout((prev) => {
+              if (!prev) return prev;
+
+              return {
+                ...prev,
+                exercises: prev.exercises.filter(
+                  (ex) => ex.name !== exercise.name,
+                ),
+              };
+            });
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <Pressable 
-        style={styles.header}
-        onPress={() => setDropdowned((prev) => !prev)}
-      >
-        <Text style={styles.name}>{exercise.name}</Text>
-        <MaterialIcons
-          name={dropdowned ? "keyboard-arrow-down" : "keyboard-arrow-up"}
-          size={24}
-          color="black"
-        />
-      </Pressable>
+      <View style={styles.header}>
+        <Pressable 
+          style={styles.headerToggle}
+          onPress={() => setDropdowned((prev) => !prev)}
+        >
+          <Text style={styles.name}>{exercise.name}</Text>
+          <MaterialIcons
+            name={dropdowned ? "keyboard-arrow-down" : "keyboard-arrow-up"}
+            size={24}
+            color="black"
+          />
+        </Pressable>
+
+        <Pressable
+          style={styles.removeExerciseButton}
+          onPress={handleRemoveExercise}
+        >
+          {({ pressed }: { pressed: boolean }) => (
+            <MaterialIcons
+              name="delete-outline"
+              size={22}
+              color={pressed ? "#FF3B30" : "black"}
+            />
+          )}
+        </Pressable>
+      </View>
       
       {!dropdowned && (
         <View style={styles.setsContainer}>
@@ -91,6 +132,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
+  },
+  headerToggle: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  removeExerciseButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
   },
   name: {
     fontWeight: "900",
