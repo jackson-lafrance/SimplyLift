@@ -15,6 +15,26 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
   const [weightText, setWeightText] = useState(set?.weight.toString() || "0");
   const [repText, setRepText] = useState(set?.reps.toString() || "0");
 
+  const handleInputFocus = (field: "weight" | "reps") => {
+    if (field === "weight" && weightText === "0") {
+      setWeightText("");
+    }
+
+    if (field === "reps" && repText === "0") {
+      setRepText("");
+    }
+  };
+
+  const handleInputBlur = (field: "weight" | "reps") => {
+    if (field === "weight" && weightText === "") {
+      handleUpdate("0", "weight");
+    }
+
+    if (field === "reps" && repText === "") {
+      handleUpdate("0", "reps");
+    }
+  };
+
   const handleUpdate = (value: string, field: "weight" | "reps") => {
     if (field === "weight") setWeightText(value);
     if (field === "reps") setRepText(value);
@@ -50,6 +70,8 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
         <TextInput
           style={styles.input}
           keyboardType="numeric"
+          onFocus={() => handleInputFocus("weight")}
+          onBlur={() => handleInputBlur("weight")}
           onChangeText={(text) => handleUpdate(text, "weight")}
           value={weightText}
           placeholder="0"
@@ -61,6 +83,8 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
         <TextInput
           style={styles.input}
           keyboardType="numeric"
+          onFocus={() => handleInputFocus("reps")}
+          onBlur={() => handleInputBlur("reps")}
           onChangeText={(text) => handleUpdate(text, "reps")}
           value={repText}
           placeholder="0"
