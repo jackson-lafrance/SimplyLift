@@ -66,6 +66,7 @@ export default function ActiveWorkout() {
           <TextInput
             maxLength={20}
             style={styles.title}
+            autoCapitalize="characters"
             onChangeText={(text) =>
               setCurrentWorkout((prev) => (prev ? { ...prev, name: text } : prev))
             }
@@ -198,7 +199,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
-    paddingBottom: 20
   },
   topShelf: {
     backgroundColor: "white",
@@ -215,7 +215,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "900",
-    textTransform: "uppercase",
     flex: 1,
   },
   timerContainer: {
