@@ -120,7 +120,7 @@ export default function Index() {
           >
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>{selectedWorkout?.name}</Text>
+                <Text style={styles.modalTitle} numberOfLines={2}>{selectedWorkout?.name}</Text>
                 <Text style={styles.modalSubtitle}>
                   {selectedWorkout?.date.toLocaleDateString(undefined, {
                     weekday: "long",
@@ -129,16 +129,7 @@ export default function Index() {
                   })}
                 </Text>
               </View>
-              <View style={{ flexDirection: "row", gap: 16 }}>
-                <Pressable onPress={deleteWorkout}>
-                  {({ pressed }: { pressed: boolean }) => (
-                    <MaterialIcons 
-                      name="delete-outline" 
-                      size={28} 
-                      color={pressed ? "#FF3B30" : "black"} 
-                    />
-                  )}
-                </Pressable>
+              <View style={{ flexDirection: "row"}}>
                 <Pressable onPress={closeModal}>
                   <MaterialIcons name="close" size={28} color="black" />
                 </Pressable>
@@ -226,7 +217,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 32,
+    fontSize: 16,
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: -0.5,

@@ -25,8 +25,10 @@ export default function ActiveWorkout() {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [time, setTime] = useState(
     new Date().getTime() -
-      (!currentWorkout ? new Date().getTime() : currentWorkout.date.getTime()),
+    (!currentWorkout ? new Date().getTime() : currentWorkout.date.getTime()),
   );
+
+  const [oldTitle, setOldTitle] = useState("")
 
   useEffect(() => {
     if (currentWorkout) {
@@ -64,12 +66,20 @@ export default function ActiveWorkout() {
       <View style={[styles.topShelf, { paddingTop: insets.top + 12 }]}>
         <View style={styles.topShelfContent}>
           <TextInput
-            maxLength={20}
+            maxLength={18}
             style={styles.title}
             autoCapitalize="characters"
+            placeholder={oldTitle}
             onChangeText={(text) =>
               setCurrentWorkout((prev) => (prev ? { ...prev, name: text } : prev))
             }
+            onFocus={(text) => {
+              setOldTitle((currentWorkout.name))
+              setCurrentWorkout((prev) => (prev ? { ...prev, name: ""} : prev))
+            }}
+            onBlur={(text) => {
+              setCurrentWorkout((prev) => (prev && prev.name === "" ? { ...prev, name: oldTitle } : prev))
+            }}
             value={currentWorkout.name}
           />
           <View style={styles.timerContainer}>

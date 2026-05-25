@@ -23,8 +23,8 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
       setWeightText("");
     }
 
-    if (field === "reps" && repText === "0") {
-      setOldRepText(set?.weight.toString() || "0")
+    if (field === "reps") {
+      setOldRepText(set?.reps.toString() || "0")
       setRepText("");
     }
   };
@@ -69,7 +69,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
       <View style={styles.numberCol}>
         <Text style={styles.setNumber}>{setNumber}</Text>
       </View>
-      
+
       <View style={styles.inputCol}>
         <TextInput
           style={styles.input}
@@ -117,10 +117,10 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
         }
       >
         {({ pressed }: { pressed: boolean }) => (
-          <MaterialIcons 
-            name="close" 
-            size={16} 
-            color={pressed ? "#FF3B30" : "#8E8E93"} 
+          <MaterialIcons
+            name="close"
+            size={16}
+            color={pressed ? "#FF3B30" : "#8E8E93"}
           />
         )}
       </Pressable>

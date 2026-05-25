@@ -27,12 +27,9 @@ export default function Tabs() {
 
   return (
     <View style={styles.container}>
-      {/* Active Screen */}
       <View style={styles.screenContainer}>{renderScreen()}</View>
 
-      {/* Unified Bottom Shelf */}
       <View style={[styles.shelf, { paddingBottom: insets.bottom + 10 }]}>
-        {/* Start Workout Button */}
         <Pressable
           style={styles.startButton}
           onPress={() =>
@@ -47,7 +44,6 @@ export default function Tabs() {
           <Text style={styles.startButtonText}>Start Workout</Text>
         </Pressable>
 
-        {/* Tab Icons */}
         <View style={styles.tabBar}>
           <Pressable 
             style={styles.tabItem} 

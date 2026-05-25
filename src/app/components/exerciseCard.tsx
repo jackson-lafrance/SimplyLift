@@ -19,10 +19,10 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
         ...prev,
         exercises: prev.exercises.map((ex) => {
           if (ex.name === exercise.name) {
-            const lastSet = ex.sets && ex.sets.length > 0 
-              ? ex.sets[ex.sets.length - 1] 
+            const lastSet = ex.sets && ex.sets.length > 0
+              ? ex.sets[ex.sets.length - 1]
               : { weight: 0, reps: 0 };
-              
+
             return {
               ...ex,
               sets: [...(ex.sets || []), { ...lastSet }],
@@ -63,11 +63,11 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable 
+        <Pressable
           style={styles.headerToggle}
           onPress={() => setDropdowned((prev) => !prev)}
         >
-          <Text style={styles.name}>{exercise.name}</Text>
+          <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
           <MaterialIcons
             name={dropdowned ? "keyboard-arrow-down" : "keyboard-arrow-up"}
             size={24}
@@ -88,7 +88,7 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
           )}
         </Pressable>
       </View>
-      
+
       {!dropdowned && (
         <View style={styles.setsContainer}>
           <View style={styles.setsHeader}>
@@ -97,7 +97,7 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
             <Text style={styles.setsHeaderLabel}>REPS</Text>
             <View style={{ width: 32 }} />
           </View>
-          
+
           {exercise.sets?.map((item, index) => (
             <SetCard
               key={index}
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "900",
     fontSize: 18,
-    textTransform: "uppercase",
+    flex: 1,
   },
   setsContainer: {
     marginTop: 16,
@@ -159,6 +159,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 4,
     marginBottom: 4,
+    gap: 8,
   },
   setsHeaderLabel: {
     flex: 1,

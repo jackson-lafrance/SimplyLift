@@ -20,7 +20,7 @@ export default function WorkoutCard({ workout }: WorkoutCardProps) {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={styles.name} numberOfLines={2}>
           {workout.name || "Untitled Workout"}
         </Text>
         <Text style={styles.date}>{workout.date.toLocaleDateString()}</Text>
@@ -61,8 +61,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 16,
     flex: 1,
-    marginRight: 8,
-    textTransform: "uppercase",
+    marginRight: 12,
   },
   date: {
     color: "#8E8E93",
