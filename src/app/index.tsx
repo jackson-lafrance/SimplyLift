@@ -14,9 +14,61 @@ import WorkoutCard from "./components/workoutCard";
 import { useAppContext, Workout } from "./context/appContext";
 import { useState, useRef, useEffect } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
+import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import type { SwipeableMethods } from "react-native-gesture-handler/lib/typescript/components/ReanimatedSwipeable/ReanimatedSwipeableProps";
 import ProfileHeader from "./components/profileHeader";
 
 const { height } = Dimensions.get("window");
+
+function SwipeableWorkoutRow({
+  workout,
+  onPress,
+  onDelete,
+}: {
+  workout: Workout;
+  onPress: () => void;
+  onDelete: (workout: Workout) => void;
+}) {
+  const swipeableRef = useRef<SwipeableMethods | null>(null);
+
+  const requestDelete = () => {
+    swipeableRef.current?.close();
+    onDelete(workout);
+  };
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      friction={2}
+      rightThreshold={80}
+      overshootRight={false}
+      enableTrackpadTwoFingerGesture
+      onSwipeableOpen={(direction) => {
+        if (direction === "left") {
+          requestDelete();
+        }
+      }}
+      renderRightActions={() => (
+        <View style={styles.swipeDeleteActionContainer}>
+          <Pressable
+            onPress={requestDelete}
+            style={({ pressed }) => [
+              styles.swipeDeleteAction,
+              pressed && styles.swipeDeleteActionPressed,
+            ]}
+          >
+            <MaterialIcons name="delete-outline" size={24} color="white" />
+            <Text style={styles.swipeDeleteText}>Delete</Text>
+          </Pressable>
+        </View>
+      )}
+    >
+      <Pressable onPress={onPress}>
+        <WorkoutCard workout={workout} />
+      </Pressable>
+    </Swipeable>
+  );
+}
 
 export default function Index() {
   const { history, setHistory, showAlert } = useAppContext();
@@ -45,7 +97,7 @@ export default function Index() {
     });
   };
 
-  const deleteWorkout = () => {
+  const requestDeleteWorkout = (workout: Workout) => {
     showAlert(
       "Delete Workout",
       "Are you sure you want to delete this workout? This action cannot be undone.",
@@ -55,20 +107,13 @@ export default function Index() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            Animated.timing(slideAnim, {
-              toValue: height,
-              duration: 200,
-              useNativeDriver: true,
-            }).start(() => {
-              setHistory((prev) =>
-                prev.filter(
-                  (w) =>
-                    w.date.getTime() !== selectedWorkout?.date.getTime() ||
-                    w.name !== selectedWorkout?.name,
-                ),
-              );
-              setSelectedWorkout(null);
-            });
+            setHistory((prev) =>
+              prev.filter(
+                (w) =>
+                  w.date.getTime() !== workout.date.getTime() ||
+                  w.name !== workout.name,
+              ),
+            );
           },
         },
       ],
@@ -92,9 +137,11 @@ export default function Index() {
       <FlatList
         data={[...history].sort((a, b) => b.date.getTime() - a.date.getTime())}
         renderItem={({ item }) => (
-          <Pressable onPress={() => setSelectedWorkout(item)}>
-            <WorkoutCard workout={item} />
-          </Pressable>
+          <SwipeableWorkoutRow
+            workout={item}
+            onPress={() => setSelectedWorkout(item)}
+            onDelete={requestDeleteWorkout}
+          />
         )}
         keyExtractor={(item, index) => `${item.name}-${index}`}
         contentContainerStyle={styles.listContent}
@@ -194,6 +241,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 180,
     paddingTop: 16,
+  },
+  swipeDeleteActionContainer: {
+    width: 96,
+    marginBottom: 12,
+  },
+  swipeDeleteAction: {
+    flex: 1,
+    borderRadius: 8,
+    backgroundColor: "#FF3B30",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  swipeDeleteActionPressed: {
+    backgroundColor: "#D70015",
+  },
+  swipeDeleteText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   modalOverlay: {
     flex: 1,
