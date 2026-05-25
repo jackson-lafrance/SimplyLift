@@ -110,7 +110,7 @@ export default function ActiveWorkout() {
                     style: "default",
                   },
                   {
-                    text: "Cancel Workout",
+                    text: "Give Up",
                     onPress: () => setCurrentWorkout(null),
                     style: "cancel",
                   },
@@ -145,7 +145,7 @@ export default function ActiveWorkout() {
                     style: "cancel",
                   },
                   {
-                    text: "Submit Workout",
+                    text: "Submit",
                     onPress: () => {
                       setHistory((prev) => [
                         ...prev,

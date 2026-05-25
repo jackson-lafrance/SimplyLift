@@ -45,7 +45,6 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<Workout[]>([]);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
 
-  // Alert state
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
     title: string;

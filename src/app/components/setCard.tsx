@@ -12,26 +12,30 @@ export interface setProps {
 export default function SetCard({ set, setNumber, exerciseName }: setProps) {
   const { currentWorkout, setCurrentWorkout } = useAppContext();
 
+  const [oldWeightText, setOldWeightText] = useState("0");
+  const [oldRepText, setOldRepText] = useState("0");
   const [weightText, setWeightText] = useState(set?.weight.toString() || "0");
   const [repText, setRepText] = useState(set?.reps.toString() || "0");
 
   const handleInputFocus = (field: "weight" | "reps") => {
-    if (field === "weight" && weightText === "0") {
+    if (field === "weight") {
+      setOldWeightText(set?.weight.toString() || "0")
       setWeightText("");
     }
 
     if (field === "reps" && repText === "0") {
+      setOldRepText(set?.weight.toString() || "0")
       setRepText("");
     }
   };
 
   const handleInputBlur = (field: "weight" | "reps") => {
     if (field === "weight" && weightText === "") {
-      handleUpdate("0", "weight");
+      handleUpdate(oldWeightText, "weight");
     }
 
     if (field === "reps" && repText === "") {
-      handleUpdate("0", "reps");
+      handleUpdate(oldRepText, "reps");
     }
   };
 
@@ -74,7 +78,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           onBlur={() => handleInputBlur("weight")}
           onChangeText={(text) => handleUpdate(text, "weight")}
           value={weightText}
-          placeholder="0"
+          placeholder={oldWeightText}
           placeholderTextColor="#C7C7CC"
         />
       </View>
@@ -87,7 +91,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           onBlur={() => handleInputBlur("reps")}
           onChangeText={(text) => handleUpdate(text, "reps")}
           value={repText}
-          placeholder="0"
+          placeholder={oldRepText}
           placeholderTextColor="#C7C7CC"
         />
       </View>

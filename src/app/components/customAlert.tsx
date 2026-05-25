@@ -30,8 +30,8 @@ export default function CustomAlert({
 }: CustomAlertProps) {
   if (!visible) return null;
 
-  const defaultButtons: AlertButton[] = buttons && buttons.length > 0 
-    ? buttons 
+  const defaultButtons: AlertButton[] = buttons && buttons.length > 0
+    ? buttons
     : [{ text: "OK", onPress: onClose }];
 
   return (
@@ -45,12 +45,12 @@ export default function CustomAlert({
         <View style={styles.alertCard}>
           <Text style={styles.title}>{title}</Text>
           {message && <Text style={styles.message}>{message}</Text>}
-          
+
           <View style={styles.buttonContainer}>
             {defaultButtons.map((btn, index) => {
               const isDestructive = btn.style === "destructive";
               const isCancel = btn.style === "cancel";
-              
+
               return (
                 <Pressable
                   key={index}
@@ -138,6 +138,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textTransform: "uppercase",
     fontSize: 12,
+    textAlign: "center",
   },
   activeButtonText: {
     color: "white",

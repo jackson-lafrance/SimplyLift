@@ -96,10 +96,11 @@ export default function NewExercise({ close }: NewExerciseParams) {
           <TextInput
             style={styles.input}
             placeholder="e.g. Bench Press"
+            autoCapitalize="characters"
             onChangeText={(text) => {
               setExerciseName(text);
               const exactMatch = exerciseList.find(
-                (e) => e.name.toLowerCase() === text.toLowerCase(),
+                (e) => e.name === text,
               );
               if (exactMatch) setDefaultSet(findMostRecentSets(exactMatch.name));
             }}
@@ -203,7 +204,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     color: "#000",
     backgroundColor: "white",
-    textTransform: "uppercase",
   },
   suggestionsContainer: {
     backgroundColor: "white",
