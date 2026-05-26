@@ -17,7 +17,7 @@ import ExerciseCard from "./exerciseCard";
 import NewExercise from "./newExercise";
 
 export default function ActiveWorkout() {
-  const { currentWorkout, setCurrentWorkout, setHistory, setExerciseList, showAlert } =
+  const { currentWorkout, setCurrentWorkout, finishWorkout, showAlert } =
     useAppContext();
   const insets = useSafeAreaInsets();
 
@@ -157,29 +157,10 @@ export default function ActiveWorkout() {
                   {
                     text: "Submit",
                     onPress: () => {
-                      setHistory((prev) => [
-                        ...prev,
-                        {
-                          ...currentWorkout,
-                          time: new Date().getTime() - currentWorkout.date.getTime(),
-                        },
-                      ]);
-
-                      setExerciseList((prev) => {
-                        const newExercises = currentWorkout.exercises.filter(
-                          (workoutExercise) =>
-                            !prev.some(
-                              (ex) =>
-                                ex.name.toLowerCase() ===
-                                workoutExercise.name.toLowerCase(),
-                            ),
-                        );
-                        const uniqueNew = newExercises.map((ex) => ({
-                          name: ex.name,
-                        }));
-                        return [...prev, ...uniqueNew];
+                      void finishWorkout({
+                        ...currentWorkout,
+                        time: new Date().getTime() - currentWorkout.date.getTime(),
                       });
-                      setCurrentWorkout(null);
                     },
                     style: "destructive",
                   },

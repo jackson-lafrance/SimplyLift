@@ -1,10 +1,20 @@
-import { View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useAppContext } from "./context/appContext";
+import { useAuth } from "./context/authContext";
 import Tabs from "./tabs";
 import ActiveWorkout from "./components/activeWorkout";
 
 export default function AppManager() {
   const { currentWorkout } = useAppContext();
+  const { isAuthLoading } = useAuth();
+
+  if (isAuthLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color="black" />
+      </View>
+    );
+  }
 
   if (!currentWorkout) {
     return (
@@ -16,3 +26,12 @@ export default function AppManager() {
 
   return <ActiveWorkout />;
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+  },
+});

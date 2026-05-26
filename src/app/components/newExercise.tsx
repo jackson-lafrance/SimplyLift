@@ -96,6 +96,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
           <TextInput
             style={styles.input}
             placeholder="e.g. Bench Press"
+            placeholderTextColor="#000" 
             autoCapitalize="characters"
             onChangeText={(text) => {
               setExerciseName(text);

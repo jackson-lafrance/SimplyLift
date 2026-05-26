@@ -71,7 +71,7 @@ function SwipeableWorkoutRow({
 }
 
 export default function Index() {
-  const { history, setHistory, showAlert } = useAppContext();
+  const { history, deleteWorkoutFromHistory, showAlert } = useAppContext();
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -107,13 +107,10 @@ export default function Index() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            setHistory((prev) =>
-              prev.filter(
-                (w) =>
-                  w.date.getTime() !== workout.date.getTime() ||
-                  w.name !== workout.name,
-              ),
-            );
+            void deleteWorkoutFromHistory(workout);
+            if (selectedWorkout?.id === workout.id) {
+              setSelectedWorkout(null);
+            }
           },
         },
       ],
@@ -143,7 +140,7 @@ export default function Index() {
             onDelete={requestDeleteWorkout}
           />
         )}
-        keyExtractor={(item, index) => `${item.name}-${index}`}
+        keyExtractor={(item, index) => item.id ?? `${item.name}-${index}`}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
