@@ -210,7 +210,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       setHistory,
       (error) => {
         console.error(error);
-        showAlert("Workout Sync Error", "Could not load your workouts from Firestore.");
+        showAlert("Workout Sync Error", "Could not load your workouts.");
       },
     );
   }, [showAlert, user]);
@@ -223,7 +223,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       setExerciseList,
       (error) => {
         console.error(error);
-        showAlert("Exercise Sync Error", "Could not load your exercises from Firestore.");
+        showAlert("Exercise Sync Error", "Could not load your exercises.");
       },
     );
   }, [showAlert, user]);
@@ -237,14 +237,14 @@ export default function AppProvider({ children }: { children: ReactNode }) {
 
         if (!result.skipped && (result.importedWorkouts || result.importedExercises)) {
           console.log(
-            `Imported ${result.importedWorkouts} workout(s) and ${result.importedExercises} saved exercise(s) into Firestore.`,
+            `Imported ${result.importedWorkouts} workout(s) and ${result.importedExercises} saved exercise(s).`,
           );
         }
       } catch (error) {
         console.error(error);
         showAlert(
           "Local Import Failed",
-          "Your old local workouts are still on this device. Try again after Firebase is configured.",
+          "Your old local workouts are still on this device.",
         );
       }
     };

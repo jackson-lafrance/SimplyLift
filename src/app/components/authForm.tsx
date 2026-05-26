@@ -81,7 +81,6 @@ export default function AuthForm({ onAuthenticated }: AuthFormProps) {
         Sign in to sync workouts. You can keep using SimplyLift locally without an account.
       </Text>
 
-      {configError && <Text style={styles.errorText}>{configError}</Text>}
       {error && <Text style={styles.errorText}>{error}</Text>}
       {message && <Text style={styles.messageText}>{message}</Text>}
 

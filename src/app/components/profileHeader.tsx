@@ -283,10 +283,6 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
 
                   <View style={styles.dangerSection}>
                     <Text style={styles.sectionTitle}>Clear Local Data</Text>
-                    <Text style={styles.sectionDescription}>
-                      This deletes local workout history and saved exercises on this
-                      device. Your active workout is left alone.
-                    </Text>
 
                     {clearError && <Text style={styles.errorText}>{clearError}</Text>}
                     {clearMessage && <Text style={styles.messageText}>{clearMessage}</Text>}
@@ -329,16 +325,6 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
                 <Text style={styles.signOutButtonText}>Sign Out</Text>
               </Pressable>
             )}
-
-            <Pressable
-              onPress={handleClose}
-              style={({ pressed }) => [
-                styles.doneButton,
-                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" },
-              ]}
-            >
-              <Text style={styles.doneButtonText}>Done</Text>
-            </Pressable>
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
@@ -531,21 +517,6 @@ const styles = StyleSheet.create({
   },
   signOutButtonText: {
     color: "black",
-    fontSize: 16,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  doneButton: {
-    backgroundColor: "black",
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "black",
-    marginTop: 20,
-  },
-  doneButtonText: {
-    color: "white",
     fontSize: 16,
     fontWeight: "900",
     textTransform: "uppercase",
