@@ -96,8 +96,9 @@ export default function NewExercise({ close }: NewExerciseParams) {
           <TextInput
             style={styles.input}
             placeholder="e.g. Bench Press"
-            placeholderTextColor="#000" 
+            placeholderTextColor="#c6c6c6" 
             autoCapitalize="characters"
+            maxLength={30}
             onChangeText={(text) => {
               setExerciseName(text);
               const exactMatch = exerciseList.find(

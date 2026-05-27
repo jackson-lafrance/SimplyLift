@@ -44,6 +44,7 @@ export default function WorkoutCard({ workout }: WorkoutCardProps) {
 
 const styles = StyleSheet.create({
   container: {
+    height: 104,
     padding: 16,
     marginBottom: 12,
     borderRadius: 8,
@@ -52,6 +53,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   topRow: {
+    height: 38,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -60,6 +62,7 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "900",
     fontSize: 16,
+    lineHeight: 18,
     flex: 1,
     marginRight: 12,
   },

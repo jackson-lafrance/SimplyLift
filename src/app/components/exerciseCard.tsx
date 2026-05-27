@@ -61,7 +61,7 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dropdowned && styles.closedContainer]}>
       <View style={styles.header}>
         <Pressable
           style={styles.headerToggle}
@@ -128,7 +128,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignSelf: "center",
   },
+  closedContainer: {
+    height: 76,
+  },
   header: {
+    height: 40,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -136,6 +140,7 @@ const styles = StyleSheet.create({
   },
   headerToggle: {
     flex: 1,
+    height: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -149,6 +154,7 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "900",
     fontSize: 18,
+    lineHeight: 20,
     flex: 1,
   },
   setsContainer: {

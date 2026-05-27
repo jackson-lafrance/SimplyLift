@@ -17,6 +17,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import type { SwipeableMethods } from "react-native-gesture-handler/lib/typescript/components/ReanimatedSwipeable/ReanimatedSwipeableProps";
 import ProfileHeader from "./components/profileHeader";
+import { getSetNumberColor } from "./utils/setDisplay";
 
 const { height } = Dimensions.get("window");
 
@@ -202,7 +203,26 @@ export default function Index() {
                   <View style={styles.setsGrid}>
                     {exercise.sets?.map((set, setIndex) => (
                       <View key={setIndex} style={styles.setRow}>
-                        <Text style={styles.setNumber}>{setIndex + 1}</Text>
+                        <View style={styles.setNumberContainer}>
+                          <Text
+                            style={[
+                              styles.setNumber,
+                              { color: getSetNumberColor(set) },
+                            ]}
+                          >
+                            {setIndex + 1}
+                          </Text>
+                          {set.type === "rir" && typeof set.rir === "number" && (
+                            <Text
+                              style={[
+                                styles.rirLabel,
+                                { color: getSetNumberColor(set) },
+                              ]}
+                            >
+                              {set.rir}
+                            </Text>
+                          )}
+                        </View>
                         <Text style={styles.setDetails}>
                           {set.weight} lbs × {set.reps} reps
                         </Text>
@@ -340,13 +360,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
+  setNumberContainer: {
+    minWidth: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   setNumber: {
-    width: 15,
     fontSize: 12,
     fontWeight: "800",
     color: "#8E8E93",
+    textAlign: "center",
+    lineHeight: 14,
+  },
+  rirLabel: {
+    marginTop: 2,
+    width: "100%",
+    fontSize: 8,
+    fontWeight: "900",
+    textAlign: "center",
+    lineHeight: 10,
+    color: "#5856D6",
   },
   setDetails: {
+    flex: 1,
     fontSize: 15,
     fontWeight: "700",
   },

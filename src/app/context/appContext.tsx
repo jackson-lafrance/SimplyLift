@@ -27,9 +27,13 @@ const EXERCISES_KEY = "exercises";
 const PAST_WORKOUTS_KEY = "pastWorkouts";
 const currentWorkoutKey = (uid: string) => `currentWorkout:${uid}`;
 
+export type SetType = "warmup" | "failure" | "rir";
+
 export interface Set {
   reps: number;
   weight: number;
+  type?: SetType;
+  rir?: number;
 }
 
 export interface Exercise {
@@ -80,9 +84,11 @@ const parseStoredWorkouts = (rawWorkouts: string | null): Workout[] => {
   if (!rawWorkouts) return [];
 
   try {
-    return (JSON.parse(rawWorkouts) as (Omit<Workout, "date"> & {
-      date: string | number;
-    })[]).map((workout) => ({
+    return (
+      JSON.parse(rawWorkouts) as (Omit<Workout, "date"> & {
+        date: string | number;
+      })[]
+    ).map((workout) => ({
       ...workout,
       date: new Date(workout.date),
     }));
@@ -105,17 +111,20 @@ const isSameWorkout = (left: Workout, right: Workout) => {
   if (left.id && right.id) return left.id === right.id;
 
   return (
-    left.name === right.name &&
-    left.date.getTime() === right.date.getTime()
+    left.name === right.name && left.date.getTime() === right.date.getTime()
   );
 };
 
-const mergeExerciseList = (currentExercises: Exercise[], workoutExercises: Exercise[]) => {
+const mergeExerciseList = (
+  currentExercises: Exercise[],
+  workoutExercises: Exercise[],
+) => {
   const exercisesByName = new Map<string, Exercise>();
 
   currentExercises.forEach((exercise) => {
     const normalizedName = normalizeExerciseName(exercise.name);
-    if (normalizedName) exercisesByName.set(normalizedName, { name: exercise.name });
+    if (normalizedName)
+      exercisesByName.set(normalizedName, { name: exercise.name });
   });
 
   workoutExercises.forEach((exercise) => {
@@ -185,7 +194,9 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const storedWorkout = await AsyncStorage.getItem(currentWorkoutKey(user.uid));
+      const storedWorkout = await AsyncStorage.getItem(
+        currentWorkoutKey(user.uid),
+      );
 
       if (!isMounted) return;
 
@@ -205,27 +216,19 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
-    return watchWorkouts(
-      user.uid,
-      setHistory,
-      (error) => {
-        console.error(error);
-        showAlert("Workout Sync Error", "Could not load your workouts.");
-      },
-    );
+    return watchWorkouts(user.uid, setHistory, (error) => {
+      console.error(error);
+      showAlert("Workout Sync Error", "Could not load your workouts.");
+    });
   }, [showAlert, user]);
 
   useEffect(() => {
     if (!user) return;
 
-    return watchExercises(
-      user.uid,
-      setExerciseList,
-      (error) => {
-        console.error(error);
-        showAlert("Exercise Sync Error", "Could not load your exercises.");
-      },
-    );
+    return watchExercises(user.uid, setExerciseList, (error) => {
+      console.error(error);
+      showAlert("Exercise Sync Error", "Could not load your exercises.");
+    });
   }, [showAlert, user]);
 
   useEffect(() => {
@@ -235,7 +238,10 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       try {
         const result = await importLegacyLocalData(user.uid);
 
-        if (!result.skipped && (result.importedWorkouts || result.importedExercises)) {
+        if (
+          !result.skipped &&
+          (result.importedWorkouts || result.importedExercises)
+        ) {
           console.log(
             `Imported ${result.importedWorkouts} workout(s) and ${result.importedExercises} saved exercise(s).`,
           );
@@ -256,7 +262,9 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     if (!hasLoadedStorage || isAuthLoading) return;
 
     const persistCurrentWorkout = async () => {
-      const storageKey = user ? currentWorkoutKey(user.uid) : CURRENT_WORKOUT_KEY;
+      const storageKey = user
+        ? currentWorkoutKey(user.uid)
+        : CURRENT_WORKOUT_KEY;
 
       if (!currentWorkout) {
         await AsyncStorage.removeItem(storageKey);
@@ -305,12 +313,17 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   const deleteWorkoutFromHistory = useCallback(
     async (workout: Workout) => {
       if (!user) {
-        setHistory((prev) => prev.filter((item) => !isSameWorkout(item, workout)));
+        setHistory((prev) =>
+          prev.filter((item) => !isSameWorkout(item, workout)),
+        );
         return;
       }
 
       if (!workout.id) {
-        showAlert("Delete Failed", "This workout does not have a Firestore id yet.");
+        showAlert(
+          "Delete Failed",
+          "This workout does not have a Firestore id yet.",
+        );
         return;
       }
 
@@ -318,7 +331,10 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         await deleteWorkout(user.uid, workout.id);
       } catch (error) {
         console.error(error);
-        showAlert("Delete Failed", "Could not delete this workout from Firestore.");
+        showAlert(
+          "Delete Failed",
+          "Could not delete this workout from Firestore.",
+        );
       }
     },
     [showAlert, user],

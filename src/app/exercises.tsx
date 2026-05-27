@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppContext, Exercise } from "./context/appContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProfileHeader from "./components/profileHeader";
+import { getSetNumberColor } from "./utils/setDisplay";
 
 const { height } = Dimensions.get("window");
 
@@ -79,7 +80,7 @@ export default function Exercises() {
             onPress={() => setSelectedExercise(item)}
           >
             <View style={styles.listItemTextContainer}>
-              <Text style={styles.exerciseName}>{item.name}</Text>
+              <Text style={styles.exerciseName} numberOfLines={2}>{item.name}</Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#000" />
           </Pressable>
@@ -132,7 +133,26 @@ export default function Exercises() {
                   <View style={styles.setsContainer}>
                     {item.sets?.map((set, i) => (
                       <View key={i} style={styles.setRow}>
-                        <Text style={styles.setNumberText}>Set {i + 1}</Text>
+                        <View style={styles.setNumberContainer}>
+                          <Text
+                            style={[
+                              styles.setNumberText,
+                              { color: getSetNumberColor(set) },
+                            ]}
+                          >
+                            {i + 1}
+                          </Text>
+                          {set.type === "rir" && typeof set.rir === "number" && (
+                            <Text
+                              style={[
+                                styles.rirLabel,
+                                { color: getSetNumberColor(set) },
+                              ]}
+                            >
+                              {set.rir}
+                            </Text>
+                          )}
+                        </View>
                         <Text style={styles.setDetailsText}>
                           {set.weight} lbs × {set.reps} reps
                         </Text>
@@ -178,6 +198,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   listItem: {
+    height: 76,
     backgroundColor: "white",
     flexDirection: "row",
     alignItems: "center",
@@ -197,6 +218,7 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     fontSize: 16,
+    lineHeight: 18,
     fontWeight: "800",
     color: "#000",
     textTransform: "uppercase",
@@ -273,15 +295,33 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  setNumberContainer: {
+    minWidth: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   setNumberText: {
     fontSize: 12,
     color: "#8E8E93",
     fontWeight: "800",
+    textAlign: "center",
+    lineHeight: 14,
+  },
+  rirLabel: {
+    marginTop: 2,
+    width: "100%",
+    fontSize: 8,
+    fontWeight: "900",
+    textAlign: "center",
+    lineHeight: 10,
+    color: "#5856D6",
   },
   setDetailsText: {
+    flex: 1,
     fontSize: 14,
     color: "#000",
     fontWeight: "700",
+    textAlign: "right",
   },
   emptyContainer: {
     alignItems: "center",
