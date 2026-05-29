@@ -13,7 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppContext, Exercise } from "./context/appContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProfileHeader from "./components/profileHeader";
-import { getSetNumberColor } from "./utils/setDisplay";
+import {
+  formatSetDisplayLabel,
+  getSetDisplayRows,
+  getSetNumberColor,
+} from "./utils/setDisplay";
 
 const { height } = Dimensions.get("window");
 
@@ -51,16 +55,28 @@ export default function Exercises() {
   // Filter history for the selected exercise
   const exerciseHistory = useMemo(() => {
     if (!selectedExercise) return [];
+
     return history
-      .map((workout) => {
+      .flatMap((workout) => {
         const entry = workout.exercises.find(
           (e) => e.name.toLowerCase() === selectedExercise.name.toLowerCase(),
         );
-        return entry
-          ? { date: workout.date, sets: entry.sets, workoutName: workout.name }
-          : null;
+
+        if (!entry) return [];
+
+        const exercise: Exercise = {
+          ...entry,
+          isUnilateral: entry.isUnilateral ?? selectedExercise.isUnilateral,
+        };
+
+        return [
+          {
+            date: workout.date,
+            exercise,
+            workoutName: workout.name,
+          },
+        ];
       })
-      .filter((e) => e !== null)
       .sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [history, selectedExercise]);
 
@@ -81,6 +97,9 @@ export default function Exercises() {
           >
             <View style={styles.listItemTextContainer}>
               <Text style={styles.exerciseName} numberOfLines={2}>{item.name}</Text>
+              {item.isUnilateral && (
+                <Text style={styles.unilateralBadge}>Unilateral</Text>
+              )}
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#000" />
           </Pressable>
@@ -131,33 +150,38 @@ export default function Exercises() {
                     </Text>
                   </View>
                   <View style={styles.setsContainer}>
-                    {item.sets?.map((set, i) => (
-                      <View key={i} style={styles.setRow}>
-                        <View style={styles.setNumberContainer}>
-                          <Text
-                            style={[
-                              styles.setNumberText,
-                              { color: getSetNumberColor(set) },
-                            ]}
-                          >
-                            {i + 1}
-                          </Text>
-                          {set.type === "rir" && typeof set.rir === "number" && (
+                    {getSetDisplayRows(item.exercise).map(
+                      ({ set, setIndex, displaySetNumber, sideLabel }) => (
+                        <View key={setIndex} style={styles.setRow}>
+                          <View style={styles.setNumberContainer}>
                             <Text
                               style={[
-                                styles.rirLabel,
+                                styles.setNumberText,
                                 { color: getSetNumberColor(set) },
                               ]}
                             >
-                              {set.rir}
+                              {formatSetDisplayLabel(
+                                displaySetNumber,
+                                sideLabel,
+                              )}
                             </Text>
-                          )}
+                            {set.type === "rir" && typeof set.rir === "number" && (
+                              <Text
+                                style={[
+                                  styles.rirLabel,
+                                  { color: getSetNumberColor(set) },
+                                ]}
+                              >
+                                {set.rir}
+                              </Text>
+                            )}
+                          </View>
+                          <Text style={styles.setDetailsText}>
+                            {set.weight} lbs × {set.reps} reps
+                          </Text>
                         </View>
-                        <Text style={styles.setDetailsText}>
-                          {set.weight} lbs × {set.reps} reps
-                        </Text>
-                      </View>
-                    ))}
+                      ),
+                    )}
                   </View>
                 </View>
               )}
@@ -222,6 +246,14 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#000",
     textTransform: "uppercase",
+  },
+  unilateralBadge: {
+    marginTop: 2,
+    fontSize: 9,
+    fontWeight: "900",
+    color: "#5856D6",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,

@@ -17,7 +17,11 @@ import { MaterialIcons } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import type { SwipeableMethods } from "react-native-gesture-handler/lib/typescript/components/ReanimatedSwipeable/ReanimatedSwipeableProps";
 import ProfileHeader from "./components/profileHeader";
-import { getSetNumberColor } from "./utils/setDisplay";
+import {
+  formatSetDisplayLabel,
+  getSetDisplayRows,
+  getSetNumberColor,
+} from "./utils/setDisplay";
 
 const { height } = Dimensions.get("window");
 
@@ -201,33 +205,38 @@ export default function Index() {
                 <View key={exIndex} style={styles.exerciseContainer}>
                   <Text style={styles.exerciseName}>{exercise.name}</Text>
                   <View style={styles.setsGrid}>
-                    {exercise.sets?.map((set, setIndex) => (
-                      <View key={setIndex} style={styles.setRow}>
-                        <View style={styles.setNumberContainer}>
-                          <Text
-                            style={[
-                              styles.setNumber,
-                              { color: getSetNumberColor(set) },
-                            ]}
-                          >
-                            {setIndex + 1}
-                          </Text>
-                          {set.type === "rir" && typeof set.rir === "number" && (
+                    {getSetDisplayRows(exercise).map(
+                      ({ set, setIndex, displaySetNumber, sideLabel }) => (
+                        <View key={setIndex} style={styles.setRow}>
+                          <View style={styles.setNumberContainer}>
                             <Text
                               style={[
-                                styles.rirLabel,
+                                styles.setNumber,
                                 { color: getSetNumberColor(set) },
                               ]}
                             >
-                              {set.rir}
+                              {formatSetDisplayLabel(
+                                displaySetNumber,
+                                sideLabel,
+                              )}
                             </Text>
-                          )}
+                            {set.type === "rir" && typeof set.rir === "number" && (
+                              <Text
+                                style={[
+                                  styles.rirLabel,
+                                  { color: getSetNumberColor(set) },
+                                ]}
+                              >
+                                {set.rir}
+                              </Text>
+                            )}
+                          </View>
+                          <Text style={styles.setDetails}>
+                            {set.weight} lbs × {set.reps} reps
+                          </Text>
                         </View>
-                        <Text style={styles.setDetails}>
-                          {set.weight} lbs × {set.reps} reps
-                        </Text>
-                      </View>
-                    ))}
+                      ),
+                    )}
                   </View>
                 </View>
               ))}

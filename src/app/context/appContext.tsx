@@ -39,6 +39,7 @@ export interface Set {
 export interface Exercise {
   name: string;
   sets?: Set[];
+  isUnilateral?: boolean;
 }
 
 export interface Workout {
@@ -124,13 +125,22 @@ const mergeExerciseList = (
   currentExercises.forEach((exercise) => {
     const normalizedName = normalizeExerciseName(exercise.name);
     if (normalizedName)
-      exercisesByName.set(normalizedName, { name: exercise.name });
+      exercisesByName.set(normalizedName, {
+        name: exercise.name,
+        isUnilateral: exercise.isUnilateral,
+      });
   });
 
   workoutExercises.forEach((exercise) => {
     const normalizedName = normalizeExerciseName(exercise.name);
-    if (!normalizedName || exercisesByName.has(normalizedName)) return;
-    exercisesByName.set(normalizedName, { name: exercise.name.trim() });
+    if (!normalizedName) return;
+
+    const savedExercise = exercisesByName.get(normalizedName);
+
+    exercisesByName.set(normalizedName, {
+      name: savedExercise?.name ?? exercise.name.trim(),
+      isUnilateral: exercise.isUnilateral ?? savedExercise?.isUnilateral,
+    });
   });
 
   return Array.from(exercisesByName.values());

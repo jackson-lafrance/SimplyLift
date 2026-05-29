@@ -8,7 +8,9 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
-import { useAppContext, Set } from "../context/appContext";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useAppContext } from "../context/appContext";
+import type { Exercise, Set } from "../context/appContext";
 import { useState, useMemo, useRef, useEffect } from "react";
 
 const { height } = Dimensions.get("window");
@@ -17,12 +19,33 @@ interface NewExerciseParams {
   close: () => void;
 }
 
+const EMPTY_SET: Set = { reps: 0, weight: 0 };
+
+const cloneSet = (set: Set): Set => ({ ...set });
+
+const getDefaultSetsForMode = (
+  sets: Set[] | undefined,
+  isUnilateral: boolean,
+) => {
+  const defaultSets = sets?.length ? sets.map(cloneSet) : [cloneSet(EMPTY_SET)];
+
+  if (!isUnilateral || defaultSets.length % 2 === 0) {
+    return defaultSets;
+  }
+
+  return [...defaultSets, cloneSet(defaultSets[defaultSets.length - 1])];
+};
+
 export default function NewExercise({ close }: NewExerciseParams) {
-  const { setCurrentWorkout, currentWorkout, exerciseList, history, showAlert } =
+  const { setCurrentWorkout, currentWorkout, exerciseList, history } =
     useAppContext();
 
   const [exerciseName, setExerciseName] = useState<string>("");
-  const [defaultSet, setDefaultSet] = useState<Set[]>([{ reps: 0, weight: 0 }]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isUnilateral, setIsUnilateral] = useState(false);
+  const [defaultSet, setDefaultSet] = useState<Set[]>([
+    cloneSet(EMPTY_SET),
+  ]);
 
   const slideAnim = useRef(new Animated.Value(height)).current;
 
@@ -56,7 +79,10 @@ export default function NewExercise({ close }: NewExerciseParams) {
       .slice(0, 5);
   }, [exerciseName, exerciseList]);
 
-  const findMostRecentSets = (name: string) => {
+  const findSavedExercise = (name: string) =>
+    exerciseList.find((e) => e.name.toLowerCase() === name.toLowerCase());
+
+  const findMostRecentExercise = (name: string): Exercise | null => {
     const sortedHistory = [...history].sort(
       (a, b) => b.date.getTime() - a.date.getTime(),
     );
@@ -65,17 +91,57 @@ export default function NewExercise({ close }: NewExerciseParams) {
       const exercise = workout.exercises.find(
         (e) => e.name.toLowerCase() === name.toLowerCase(),
       );
-      if (exercise && exercise.sets && exercise.sets.length > 0) {
-        return exercise.sets;
-      }
+      if (exercise) return exercise;
     }
-    return [{ reps: 0, weight: 0 }];
+
+    return null;
+  };
+
+  const findMostRecentSets = (name: string) => {
+    const exercise = findMostRecentExercise(name);
+
+    if (exercise?.sets && exercise.sets.length > 0) {
+      return exercise.sets;
+    }
+
+    return [cloneSet(EMPTY_SET)];
+  };
+
+  const getExerciseUnilateralMode = (name: string) => {
+    const savedExercise = findSavedExercise(name);
+
+    if (typeof savedExercise?.isUnilateral === "boolean") {
+      return savedExercise.isUnilateral;
+    }
+
+    return findMostRecentExercise(name)?.isUnilateral ?? false;
+  };
+
+  const applyExerciseDefaults = (name: string) => {
+    const nextIsUnilateral = getExerciseUnilateralMode(name);
+
+    setIsUnilateral(nextIsUnilateral);
+    setDefaultSet(
+      getDefaultSetsForMode(findMostRecentSets(name), nextIsUnilateral),
+    );
   };
 
   const handleSelectExercise = (name: string) => {
+    setErrorMessage(null);
     setExerciseName(name);
-    const recentSet = findMostRecentSets(name);
-    setDefaultSet(recentSet);
+    applyExerciseDefaults(name);
+  };
+
+  const handleUnilateralChange = (nextIsUnilateral: boolean) => {
+    setIsUnilateral(nextIsUnilateral);
+    setDefaultSet((sets) => {
+      if (!nextIsUnilateral && isUnilateral) {
+        const bilateralSets = sets.filter((_, index) => index % 2 === 0);
+        return bilateralSets.length ? bilateralSets : [cloneSet(EMPTY_SET)];
+      }
+
+      return getDefaultSetsForMode(sets, nextIsUnilateral);
+    });
   };
 
   return (
@@ -100,11 +166,10 @@ export default function NewExercise({ close }: NewExerciseParams) {
             autoCapitalize="characters"
             maxLength={30}
             onChangeText={(text) => {
+              setErrorMessage(null);
               setExerciseName(text);
-              const exactMatch = exerciseList.find(
-                (e) => e.name === text,
-              );
-              if (exactMatch) setDefaultSet(findMostRecentSets(exactMatch.name));
+              const exactMatch = findSavedExercise(text);
+              if (exactMatch) applyExerciseDefaults(exactMatch.name);
             }}
             value={exerciseName}
           />
@@ -123,6 +188,32 @@ export default function NewExercise({ close }: NewExerciseParams) {
             </View>
           )}
 
+          <Pressable
+            style={[
+              styles.unilateralOption,
+              isUnilateral && styles.unilateralOptionSelected,
+            ]}
+            onPress={() => handleUnilateralChange(!isUnilateral)}
+          >
+            <View
+              style={[
+                styles.unilateralCheckbox,
+                isUnilateral && styles.unilateralCheckboxSelected,
+              ]}
+            >
+              {isUnilateral && (
+                <MaterialIcons name="check" size={16} color="white" />
+              )}
+            </View>
+            <View style={styles.unilateralTextContainer}>
+              <Text style={styles.unilateralTitle}>Unilateral exercise</Text>
+            </View>
+          </Pressable>
+
+          {errorMessage && (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          )}
+
           <View style={styles.buttonContainer}>
             <Pressable
               style={[styles.button, styles.cancelButton]}
@@ -138,14 +229,20 @@ export default function NewExercise({ close }: NewExerciseParams) {
                 pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
               ]}
               onPress={() => {
-                if (!exerciseName.trim()) return;
+                const trimmedExerciseName = exerciseName.trim();
+
+                if (!trimmedExerciseName) return;
 
                 const exists = currentWorkout?.exercises.some(
-                  (e) => e.name.toLowerCase() === exerciseName.toLowerCase(),
+                  (e) =>
+                    e.name.trim().toLowerCase() ===
+                    trimmedExerciseName.toLowerCase(),
                 );
 
                 if (exists) {
-                  showAlert("Exercise Already Added", "Use the add set button!");
+                  setErrorMessage(
+                    "This exercise is already in this workout. Use the add set button on the existing exercise.",
+                  );
                   return;
                 }
 
@@ -155,7 +252,14 @@ export default function NewExercise({ close }: NewExerciseParams) {
                         ...prev,
                         exercises: [
                           ...prev.exercises,
-                          { name: exerciseName, sets: defaultSet },
+                          {
+                            name: trimmedExerciseName,
+                            sets: getDefaultSetsForMode(
+                              defaultSet,
+                              isUnilateral,
+                            ),
+                            isUnilateral,
+                          },
                         ],
                       }
                     : prev,
@@ -223,6 +327,51 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 14,
     color: "black",
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  unilateralOption: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "black",
+    backgroundColor: "white",
+  },
+  unilateralOptionSelected: {
+    borderColor: "#5856D6",
+    backgroundColor: "#F2F1FF",
+  },
+  unilateralCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "black",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+  },
+  unilateralCheckboxSelected: {
+    borderColor: "#5856D6",
+    backgroundColor: "#5856D6",
+  },
+  unilateralTextContainer: {
+    flex: 1,
+  },
+  unilateralTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "black",
+    textTransform: "uppercase",
+  },
+  errorText: {
+    marginTop: 12,
+    color: "#FF3B30",
+    fontSize: 12,
     fontWeight: "800",
     textTransform: "uppercase",
   },

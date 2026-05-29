@@ -36,6 +36,7 @@ interface FirestoreWorkout {
 interface FirestoreExercise {
   name: string;
   normalizedName: string;
+  isUnilateral?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -137,7 +138,10 @@ export const watchExercises = (
       onChange(
         snapshot.docs.map((exerciseDoc) => {
           const data = exerciseDoc.data() as FirestoreExercise;
-          return { name: data.name };
+          return {
+            name: data.name,
+            isUnilateral: data.isUnilateral,
+          };
         }),
       );
     },
@@ -196,9 +200,11 @@ export const upsertExercises = async (uid: string, exercises: Exercise[]) => {
   exercises.forEach((exercise) => {
     const normalizedName = normalizeExerciseName(exercise.name);
     if (!normalizedName) return;
-    if (!uniqueExercises.has(normalizedName)) {
-      uniqueExercises.set(normalizedName, { name: exercise.name.trim() });
-    }
+    uniqueExercises.set(normalizedName, {
+      name: exercise.name.trim(),
+      isUnilateral:
+        exercise.isUnilateral ?? uniqueExercises.get(normalizedName)?.isUnilateral,
+    });
   });
 
   if (!uniqueExercises.size) return;
@@ -212,6 +218,7 @@ export const upsertExercises = async (uid: string, exercises: Exercise[]) => {
       {
         name: exercise.name,
         normalizedName,
+        isUnilateral: exercise.isUnilateral ?? false,
         updatedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       },

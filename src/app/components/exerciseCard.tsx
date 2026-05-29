@@ -1,6 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { StyleSheet, View, Text, Pressable } from "react-native";
-import { Exercise, useAppContext } from "../context/appContext";
+import { useAppContext } from "../context/appContext";
+import type { Exercise, Set } from "../context/appContext";
+import { getSetDisplayRows } from "../utils/setDisplay";
 import SetCard from "./setCard";
 import { useState } from "react";
 
@@ -15,20 +17,39 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   const handleAddSet = () => {
     setCurrentWorkout((prev) => {
       if (!prev) return prev;
+
       return {
         ...prev,
         exercises: prev.exercises.map((ex) => {
-          if (ex.name === exercise.name) {
-            const lastSet = ex.sets && ex.sets.length > 0
-              ? ex.sets[ex.sets.length - 1]
-              : { weight: 0, reps: 0 };
+          if (ex.name !== exercise.name) return ex;
+
+          const sets = ex.sets ?? [];
+          const fallbackSet: Set = { weight: 0, reps: 0 };
+
+          if (ex.isUnilateral) {
+            const lastPairStartIndex = Math.max(
+              0,
+              sets.length - (sets.length % 2 === 0 ? 2 : 1),
+            );
+            const lastLeftSet = sets[lastPairStartIndex] ?? fallbackSet;
+            const lastRightSet = sets[lastPairStartIndex + 1] ?? lastLeftSet;
 
             return {
               ...ex,
-              sets: [...(ex.sets || []), { ...lastSet }],
+              sets: [
+                ...sets,
+                { ...lastLeftSet },
+                { ...lastRightSet },
+              ],
             };
           }
-          return ex;
+
+          const lastSet = sets[sets.length - 1] ?? fallbackSet;
+
+          return {
+            ...ex,
+            sets: [...sets, { ...lastSet }],
+          };
         }),
       };
     });
@@ -67,7 +88,12 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
           style={styles.headerToggle}
           onPress={() => setDropdowned((prev) => !prev)}
         >
-          <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
+          <View style={styles.nameContainer}>
+            <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
+            {exercise.isUnilateral && (
+              <Text style={styles.unilateralBadge}>Unilateral</Text>
+            )}
+          </View>
           <MaterialIcons
             name={dropdowned ? "keyboard-arrow-down" : "keyboard-arrow-up"}
             size={24}
@@ -98,18 +124,25 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
             <View style={{ width: 32 }} />
           </View>
 
-          {exercise.sets?.map((item, index) => (
-            <SetCard
-              key={index}
-              setNumber={index + 1}
-              set={item}
-              exerciseName={exercise.name}
-            />
-          ))}
+          {getSetDisplayRows(exercise).map(
+            ({ set, setIndex, displaySetNumber, sideLabel }) => (
+              <SetCard
+                key={setIndex}
+                set={set}
+                setIndex={setIndex}
+                displaySetNumber={displaySetNumber}
+                sideLabel={sideLabel}
+                exerciseName={exercise.name}
+                isUnilateral={exercise.isUnilateral}
+              />
+            ),
+          )}
 
           <Pressable style={styles.addSetButton} onPress={handleAddSet}>
             <MaterialIcons name="add" size={18} color="black" />
-            <Text style={styles.addSetText}>ADD SET</Text>
+            <Text style={styles.addSetText}>
+              {exercise.isUnilateral ? "ADD L/R SET" : "ADD SET"}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -151,11 +184,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  nameContainer: {
+    flex: 1,
+  },
   name: {
     fontWeight: "900",
     fontSize: 18,
     lineHeight: 20,
-    flex: 1,
+  },
+  unilateralBadge: {
+    marginTop: 2,
+    fontSize: 9,
+    fontWeight: "900",
+    color: "#5856D6",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   setsContainer: {
     marginTop: 16,

@@ -6,25 +6,38 @@ import {
   Pressable,
   Modal,
 } from "react-native";
-import { Set, useAppContext } from "../context/appContext";
+import { useAppContext } from "../context/appContext";
+import type { Set } from "../context/appContext";
 import { useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
+  formatSetDisplayLabel,
   getSetNumberColor,
   RIR_COLORS,
   RIR_OPTIONS,
   SET_TYPE_COLORS,
-  SetTypeOption,
+  type SetSideLabel,
+  type SetTypeOption,
 } from "../utils/setDisplay";
 
 export interface setProps {
   set: Set;
-  setNumber: number;
+  setIndex: number;
+  displaySetNumber: number;
+  sideLabel?: SetSideLabel;
   exerciseName: string;
+  isUnilateral?: boolean;
 }
 
-export default function SetCard({ set, setNumber, exerciseName }: setProps) {
-  const { currentWorkout, setCurrentWorkout } = useAppContext();
+export default function SetCard({
+  set,
+  setIndex,
+  displaySetNumber,
+  sideLabel,
+  exerciseName,
+  isUnilateral = false,
+}: setProps) {
+  const { setCurrentWorkout } = useAppContext();
 
   const [oldWeightText, setOldWeightText] = useState("0");
   const [oldRepText, setOldRepText] = useState("0");
@@ -59,24 +72,26 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
     if (field === "weight") setWeightText(value);
     if (field === "reps") setRepText(value);
 
-    if (!currentWorkout) return;
-
     const numValue = parseFloat(value) || 0;
 
-    setCurrentWorkout({
-      ...currentWorkout,
-      exercises: currentWorkout.exercises.map((ex) => {
-        if (ex.name !== exerciseName) return ex;
+    setCurrentWorkout((prev) => {
+      if (!prev) return prev;
 
-        return {
-          ...ex,
-          sets: ex.sets?.map((se, index) => {
-            if (index !== setNumber - 1) return se;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((ex) => {
+          if (ex.name !== exerciseName) return ex;
 
-            return { ...se, [field]: numValue };
-          }),
-        };
-      }),
+          return {
+            ...ex,
+            sets: ex.sets?.map((se, index) => {
+              if (index !== setIndex) return se;
+
+              return { ...se, [field]: numValue };
+            }),
+          };
+        }),
+      };
     });
   };
 
@@ -92,7 +107,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           return {
             ...ex,
             sets: ex.sets?.map((se, index) => {
-              if (index !== setNumber - 1) return se;
+              if (index !== setIndex) return se;
 
               const { type: _oldType, rir: _oldRir, ...baseSet } = se;
 
@@ -121,6 +136,8 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
     setIsTypePickerVisible(false);
   };
 
+  const setLabel = formatSetDisplayLabel(displaySetNumber, sideLabel);
+
   return (
     <View style={styles.container}>
       <View style={styles.numberCol}>
@@ -128,7 +145,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
           style={styles.setNumberButton}
           onPress={() => setIsTypePickerVisible(true)}
         >
-          <Text style={[styles.setNumber, { color: getSetNumberColor(set) }]}>{setNumber}</Text>
+          <Text style={[styles.setNumber, { color: getSetNumberColor(set) }]}>{setLabel}</Text>
 
           {set.type === "rir" && typeof set.rir === "number" && (
             <Text style={[styles.rirLabel, { color: getSetNumberColor(set) }]}>{set.rir}</Text>
@@ -166,6 +183,12 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
         onPress={() =>
           setCurrentWorkout((prev) => {
             if (!prev) return prev;
+
+            const firstPairIndex = setIndex - (setIndex % 2);
+            const indexesToRemove = isUnilateral
+              ? [firstPairIndex, firstPairIndex + 1]
+              : [setIndex];
+
             return {
               ...prev,
               exercises: prev.exercises.map((exe) => {
@@ -173,7 +196,7 @@ export default function SetCard({ set, setNumber, exerciseName }: setProps) {
                   return {
                     ...exe,
                     sets: exe.sets?.filter(
-                      (_, index) => index !== setNumber - 1,
+                      (_, index) => !indexesToRemove.includes(index),
                     ),
                   };
                 }
