@@ -7,7 +7,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,7 +21,6 @@ export default function ActiveWorkout() {
   const insets = useSafeAreaInsets();
 
   const [visible, setVisible] = useState(false);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [time, setTime] = useState(
     new Date().getTime() -
     (!currentWorkout ? new Date().getTime() : currentWorkout.date.getTime()),
@@ -39,20 +37,6 @@ export default function ActiveWorkout() {
       return () => clearInterval(interval);
     }
   }, [currentWorkout]);
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
-      setIsKeyboardVisible(true);
-    });
-    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
-      setIsKeyboardVisible(false);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
 
   if (!currentWorkout) return null;
 
@@ -101,87 +85,82 @@ export default function ActiveWorkout() {
           </View>
         )}
         style={styles.list}
-        contentContainerStyle={[
-          styles.listContent,
-          isKeyboardVisible && styles.listContentKeyboardVisible,
-        ]}
+        contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       />
 
-      {!isKeyboardVisible && (
-        <View style={[styles.bottomShelf, { paddingBottom: insets.bottom + 10 }]}>
-          <View style={styles.bottomShelfContent}>
-            <Pressable
-              onPress={() => {
-                showAlert("Cancel Workout", "Are you sure you want to quit?", [
-                  {
-                    text: "Keep Going",
-                    style: "default",
-                  },
-                  {
-                    text: "Give Up",
-                    onPress: () => setCurrentWorkout(null),
-                    style: "cancel",
-                  },
-                ]);
-              }}
-              style={styles.shelfButton}
-            >
-              {({ pressed }: { pressed: boolean }) => (
-                <>
-                  <MaterialIcons
-                    name="close"
-                    size={24}
-                    color={pressed ? "#FF3B30" : "black"}
-                  />
-                  <Text style={[styles.shelfButtonLabel, pressed && { color: "#FF3B30" }]}>Quit</Text>
-                </>
-              )}
-            </Pressable>
+      <View style={[styles.bottomShelf, { paddingBottom: insets.bottom + 10 }]}>
+        <View style={styles.bottomShelfContent}>
+          <Pressable
+            onPress={() => {
+              showAlert("Cancel Workout", "Are you sure you want to quit?", [
+                {
+                  text: "Keep Going",
+                  style: "default",
+                },
+                {
+                  text: "Give Up",
+                  onPress: () => setCurrentWorkout(null),
+                  style: "cancel",
+                },
+              ]);
+            }}
+            style={styles.shelfButton}
+          >
+            {({ pressed }: { pressed: boolean }) => (
+              <>
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={pressed ? "#FF3B30" : "black"}
+                />
+                <Text style={[styles.shelfButtonLabel, pressed && { color: "#FF3B30" }]}>Quit</Text>
+              </>
+            )}
+          </Pressable>
 
-            <Pressable
-              style={styles.mainActionButton}
-              onPress={() => setVisible(true)}
-            >
-              <Text style={styles.mainActionButtonText}>Add Exercise</Text>
-            </Pressable>
+          <Pressable
+            style={styles.mainActionButton}
+            onPress={() => setVisible(true)}
+          >
+            <Text style={styles.mainActionButtonText}>Add Exercise</Text>
+          </Pressable>
 
-            <Pressable
-              onPress={() => {
-                showAlert("Submit Workout", "Are you finished your workout?", [
-                  {
-                    text: "Keep Going",
-                    style: "cancel",
+          <Pressable
+            onPress={() => {
+              showAlert("Submit Workout", "Are you finished your workout?", [
+                {
+                  text: "Keep Going",
+                  style: "cancel",
+                },
+                {
+                  text: "Submit",
+                  onPress: () => {
+                    void finishWorkout({
+                      ...currentWorkout,
+                      time: new Date().getTime() - currentWorkout.date.getTime(),
+                    });
                   },
-                  {
-                    text: "Submit",
-                    onPress: () => {
-                      void finishWorkout({
-                        ...currentWorkout,
-                        time: new Date().getTime() - currentWorkout.date.getTime(),
-                      });
-                    },
-                    style: "destructive",
-                  },
-                ]);
-              }}
-              style={styles.shelfButton}
-            >
-              {({ pressed }: { pressed: boolean }) => (
-                <>
-                  <MaterialIcons
-                    name="check"
-                    size={24}
-                    color={pressed ? "#34C759" : "black"}
-                  />
-                  <Text style={[styles.shelfButtonLabel, pressed && { color: "#34C759" }]}>Finish</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
+                  style: "destructive",
+                },
+              ]);
+            }}
+            style={styles.shelfButton}
+          >
+            {({ pressed }: { pressed: boolean }) => (
+              <>
+                <MaterialIcons
+                  name="check"
+                  size={24}
+                  color={pressed ? "#34C759" : "black"}
+                />
+                <Text style={[styles.shelfButtonLabel, pressed && { color: "#34C759" }]}>Finish</Text>
+              </>
+            )}
+          </Pressable>
         </View>
-      )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -225,9 +204,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 20,
     paddingBottom: 180,
-  },
-  listContentKeyboardVisible: {
-    paddingBottom: 40,
   },
   exerciseWrapper: {
     width: "100%",
