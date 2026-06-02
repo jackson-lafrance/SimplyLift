@@ -25,6 +25,7 @@ import {
 const CURRENT_WORKOUT_KEY = "currentWorkout";
 const EXERCISES_KEY = "exercises";
 const PAST_WORKOUTS_KEY = "pastWorkouts";
+const ALLOW_UNILATERAL_EXERCISES_KEY = "allowUnilateralExercises";
 const currentWorkoutKey = (uid: string) => `currentWorkout:${uid}`;
 
 export type SetType = "warmup" | "failure" | "rir";
@@ -55,6 +56,8 @@ interface AppContextType {
   setCurrentWorkout: Dispatch<SetStateAction<Workout | null>>;
   exerciseList: Exercise[];
   history: Workout[];
+  allowUnilateralExercises: boolean;
+  setAllowUnilateralExercises: Dispatch<SetStateAction<boolean>>;
   finishWorkout: (workout: Workout) => Promise<void>;
   deleteWorkoutFromHistory: (workout: Workout) => Promise<void>;
   clearSignedInWorkoutData: () => Promise<void>;
@@ -151,7 +154,10 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
   const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
   const [history, setHistory] = useState<Workout[]>([]);
+  const [allowUnilateralExercises, setAllowUnilateralExercises] =
+    useState(true);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
@@ -178,6 +184,43 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   const hideAlert = useCallback(() => {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const storedAllowUnilateralExercises = await AsyncStorage.getItem(
+          ALLOW_UNILATERAL_EXERCISES_KEY,
+        );
+
+        if (!isMounted) return;
+
+        setAllowUnilateralExercises(
+          storedAllowUnilateralExercises === "false" ? false : true,
+        );
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (isMounted) setHasLoadedSettings(true);
+      }
+    };
+
+    void loadSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedSettings) return;
+
+    void AsyncStorage.setItem(
+      ALLOW_UNILATERAL_EXERCISES_KEY,
+      JSON.stringify(allowUnilateralExercises),
+    );
+  }, [allowUnilateralExercises, hasLoadedSettings]);
 
   useEffect(() => {
     let isMounted = true;
@@ -385,6 +428,8 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setCurrentWorkout,
         exerciseList,
         history,
+        allowUnilateralExercises,
+        setAllowUnilateralExercises,
         finishWorkout,
         deleteWorkoutFromHistory,
         clearSignedInWorkoutData,

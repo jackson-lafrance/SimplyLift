@@ -36,9 +36,20 @@ const getDefaultSetsForMode = (
   return [...defaultSets, cloneSet(defaultSets[defaultSets.length - 1])];
 };
 
+const getBilateralSetsFromUnilateralPairs = (sets: Set[]) => {
+  const bilateralSets = sets.filter((_, index) => index % 2 === 0);
+
+  return bilateralSets.length ? bilateralSets : [cloneSet(EMPTY_SET)];
+};
+
 export default function NewExercise({ close }: NewExerciseParams) {
-  const { setCurrentWorkout, currentWorkout, exerciseList, history } =
-    useAppContext();
+  const {
+    setCurrentWorkout,
+    currentWorkout,
+    exerciseList,
+    history,
+    allowUnilateralExercises,
+  } = useAppContext();
 
   const [exerciseName, setExerciseName] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -136,12 +147,23 @@ export default function NewExercise({ close }: NewExerciseParams) {
     setIsUnilateral(nextIsUnilateral);
     setDefaultSet((sets) => {
       if (!nextIsUnilateral && isUnilateral) {
-        const bilateralSets = sets.filter((_, index) => index % 2 === 0);
-        return bilateralSets.length ? bilateralSets : [cloneSet(EMPTY_SET)];
+        return getBilateralSetsFromUnilateralPairs(sets);
       }
 
       return getDefaultSetsForMode(sets, nextIsUnilateral);
     });
+  };
+
+  const getSubmittedSets = (shouldSaveAsUnilateral: boolean) => {
+    if (shouldSaveAsUnilateral) {
+      return getDefaultSetsForMode(defaultSet, true);
+    }
+
+    if (isUnilateral) {
+      return getBilateralSetsFromUnilateralPairs(defaultSet);
+    }
+
+    return getDefaultSetsForMode(defaultSet, false);
   };
 
   return (
@@ -188,27 +210,29 @@ export default function NewExercise({ close }: NewExerciseParams) {
             </View>
           )}
 
-          <Pressable
-            style={[
-              styles.unilateralOption,
-              isUnilateral && styles.unilateralOptionSelected,
-            ]}
-            onPress={() => handleUnilateralChange(!isUnilateral)}
-          >
-            <View
+          {allowUnilateralExercises && (
+            <Pressable
               style={[
-                styles.unilateralCheckbox,
-                isUnilateral && styles.unilateralCheckboxSelected,
+                styles.unilateralOption,
+                isUnilateral && styles.unilateralOptionSelected,
               ]}
+              onPress={() => handleUnilateralChange(!isUnilateral)}
             >
-              {isUnilateral && (
-                <MaterialIcons name="check" size={16} color="white" />
-              )}
-            </View>
-            <View style={styles.unilateralTextContainer}>
-              <Text style={styles.unilateralTitle}>Unilateral exercise</Text>
-            </View>
-          </Pressable>
+              <View
+                style={[
+                  styles.unilateralCheckbox,
+                  isUnilateral && styles.unilateralCheckboxSelected,
+                ]}
+              >
+                {isUnilateral && (
+                  <MaterialIcons name="check" size={16} color="white" />
+                )}
+              </View>
+              <View style={styles.unilateralTextContainer}>
+                <Text style={styles.unilateralTitle}>Unilateral exercise</Text>
+              </View>
+            </Pressable>
+          )}
 
           {errorMessage && (
             <Text style={styles.errorText}>{errorMessage}</Text>
@@ -233,6 +257,11 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
                 if (!trimmedExerciseName) return;
 
+                const shouldSaveAsUnilateral = allowUnilateralExercises
+                  ? isUnilateral
+                  : getExerciseUnilateralMode(trimmedExerciseName);
+                const submittedSets = getSubmittedSets(shouldSaveAsUnilateral);
+
                 const exists = currentWorkout?.exercises.some(
                   (e) =>
                     e.name.trim().toLowerCase() ===
@@ -254,11 +283,8 @@ export default function NewExercise({ close }: NewExerciseParams) {
                           ...prev.exercises,
                           {
                             name: trimmedExerciseName,
-                            sets: getDefaultSetsForMode(
-                              defaultSet,
-                              isUnilateral,
-                            ),
-                            isUnilateral,
+                            sets: submittedSets,
+                            isUnilateral: shouldSaveAsUnilateral,
                           },
                         ],
                       }
