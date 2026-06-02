@@ -10,13 +10,15 @@ import { selectionFeedback } from "./utils/feedback";
 import Index from "./index";
 import Exercises from "./exercises";
 import Settings from "./settings";
+import Routines from "./routines";
 
-type TabKey = "home" | "exercises" | "settings";
+type TabKey = "home" | "exercises" | "settings" | "routines";
 
 const TAB_TITLES: Record<TabKey, string> = {
   home: "SimplyLift",
   exercises: "Exercises",
   settings: "Settings",
+  routines: "Routines",
 };
 
 export default function Tabs() {
@@ -30,6 +32,8 @@ export default function Tabs() {
         return <Index />;
       case "exercises":
         return <Exercises />;
+      case "routines":
+        return <Routines />;
       case "settings":
         return <Settings />;
     }
@@ -83,18 +87,47 @@ export default function Tabs() {
           </Pressable>
 
           <Pressable
-            style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
+            style={styles.tabItem}
+            onPress={() => {
+              selectionFeedback();
+              setActiveTab("routines");
+            }}
+          >
+            <MaterialIcons
+              name="bookmarks"
+              size={28}
+              color={activeTab === "routines" ? "black" : "#8E8E93"}
+            />
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: activeTab === "routines" ? "black" : "#8E8E93" },
+              ]}
+            >
+              Routines
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.tabItem}
             onPress={() => {
               selectionFeedback();
               setActiveTab("settings");
             }}
           >
-            <MaterialIcons 
-              name="settings" 
-              size={28} 
-              color={activeTab === "settings" ? "black" : "#8E8E93"} 
+            <MaterialIcons
+              name="settings"
+              size={28}
+              color={activeTab === "settings" ? "black" : "#8E8E93"}
             />
-            <Text style={[styles.tabLabel, { color: activeTab === "settings" ? "black" : "#8E8E93" }]}>Settings</Text>
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: activeTab === "settings" ? "black" : "#8E8E93" },
+              ]}
+            >
+              Settings
+            </Text>
           </Pressable>
         </View>
       </View>
