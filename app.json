@@ -2,7 +2,7 @@
   "expo": {
     "name": "SimplyLift",
     "slug": "SimplyLift",
-    "version": "1.1.4",
+    "version": "1.1.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "simplylift",

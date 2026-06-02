@@ -187,7 +187,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
                   <View style={styles.profileContent}>
                     <Text style={styles.emailLabel}>Signed in as</Text>
                     <Text style={styles.emailText}>{user.email ?? "Unknown user"}</Text>
-                    <Text style={styles.popoverText}>SimplyLift v1.0.0</Text>
+                    <Text style={styles.popoverText}>SimplyLift v1.1.8</Text>
                   </View>
 
                   <View style={styles.dangerSection}>

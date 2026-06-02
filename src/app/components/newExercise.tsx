@@ -186,6 +186,10 @@ export default function NewExercise({ close }: NewExerciseParams) {
             placeholder="e.g. Bench Press"
             placeholderTextColor="#c6c6c6" 
             autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect={false}
+            spellCheck={false}
+            textContentType="none"
             maxLength={30}
             onChangeText={(text) => {
               setErrorMessage(null);

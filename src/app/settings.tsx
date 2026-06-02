@@ -21,7 +21,7 @@ export default function Settings() {
           />
         </View>
 
-        <Text style={styles.version}>SimplyLift v1.0.0</Text>
+        <Text style={styles.version}>SimplyLift v1.1.8</Text>
       </View>
     </View>
   );
