@@ -11,10 +11,6 @@ export default function Settings() {
         <View style={styles.settingCard}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingTitle}>Unilateral Exercises</Text>
-            <Text style={styles.settingDescription}>
-              Show the option to mark newly added exercises as unilateral.
-              Existing unilateral exercises stay unchanged.
-            </Text>
           </View>
           <Switch
             value={allowUnilateralExercises}
@@ -57,14 +53,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     color: "black",
-    textTransform: "uppercase",
-    marginBottom: 6,
-  },
-  settingDescription: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#8E8E93",
-    lineHeight: 16,
     textTransform: "uppercase",
   },
   version: {
