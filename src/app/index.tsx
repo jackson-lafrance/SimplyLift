@@ -9,14 +9,12 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import WorkoutCard from "./components/workoutCard";
 import { useAppContext, Workout } from "./context/appContext";
 import { useState, useRef, useEffect } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import type { SwipeableMethods } from "react-native-gesture-handler/lib/typescript/components/ReanimatedSwipeable/ReanimatedSwipeableProps";
-import ProfileHeader from "./components/profileHeader";
 import {
   formatSetDisplayLabel,
   getSetDisplayRows,
@@ -133,9 +131,7 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <ProfileHeader title="SimplyLift" />
-      
+    <View style={styles.container}>
       <FlatList
         data={[...history].sort((a, b) => b.date.getTime() - a.date.getTime())}
         renderItem={({ item }) => (
@@ -254,7 +250,7 @@ export default function Index() {
           </Animated.View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,16 +1,25 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAppContext } from "./context/appContext";
+import ProfileHeader from "./components/profileHeader";
 
 // Screens
 import Index from "./index";
 import Exercises from "./exercises";
 import Settings from "./settings";
 
+type TabKey = "home" | "exercises" | "settings";
+
+const TAB_TITLES: Record<TabKey, string> = {
+  home: "SimplyLift",
+  exercises: "Exercises",
+  settings: "Settings",
+};
+
 export default function Tabs() {
-  const [activeTab, setActiveTab] = useState<"home" | "exercises" | "settings">("home");
+  const [activeTab, setActiveTab] = useState<TabKey>("home");
   const insets = useSafeAreaInsets();
   const { setCurrentWorkout } = useAppContext();
 
@@ -26,7 +35,8 @@ export default function Tabs() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <ProfileHeader title={TAB_TITLES[activeTab]} />
       <View style={styles.screenContainer}>{renderScreen()}</View>
 
       <View style={[styles.shelf, { paddingBottom: insets.bottom + 10 }]}>
@@ -82,7 +92,7 @@ export default function Tabs() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

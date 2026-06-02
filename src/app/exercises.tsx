@@ -9,10 +9,8 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppContext, Exercise } from "./context/appContext";
 import { MaterialIcons } from "@expo/vector-icons";
-import ProfileHeader from "./components/profileHeader";
 import {
   formatSetDisplayLabel,
   getSetDisplayRows,
@@ -81,8 +79,7 @@ export default function Exercises() {
   }, [history, selectedExercise]);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <ProfileHeader title="Exercises" />
+    <View style={styles.container}>
       <FlatList
         data={exerciseList}
         keyExtractor={(item) => item.name}
@@ -209,7 +206,7 @@ export default function Exercises() {
           </Animated.View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
