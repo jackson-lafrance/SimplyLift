@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -30,16 +30,6 @@ const TAB_TITLES: Record<TabKey, string> = {
   routines: "Routines",
 };
 
-const WEEKDAYS = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-] as const;
-
 const EMPTY_SET: Set = { reps: 0, weight: 0 };
 
 const cloneSet = (set: Set): Set => ({ ...set });
@@ -67,18 +57,9 @@ const createEmptyWorkout = (): Workout => ({
 const getActiveSplitDay = (split: WorkoutSplit | undefined) => {
   if (!split) return undefined;
 
-  if (split.schedule.type === "splitOrder") {
-    const dayId =
-      split.currentDayId ?? split.schedule.dayIds[0] ?? split.days[0]?.id;
-    return split.days.find((day) => day.id === dayId) ?? split.days[0];
-  }
-
-  const today = WEEKDAYS[new Date().getDay()];
-  const assignment = split.schedule.assignments.find(
-    (item) => item.weekday === today,
-  );
-
-  return split.days.find((day) => day.id === assignment?.dayId);
+  const dayId =
+    split.currentDayId ?? split.schedule.dayIds[0] ?? split.days[0]?.id;
+  return split.days.find((day) => day.id === dayId) ?? split.days[0];
 };
 
 export default function Tabs() {
@@ -92,11 +73,24 @@ export default function Tabs() {
     history,
     workoutRoutines,
     workoutSplits,
+    routinesAndSplitsEnabled,
   } = useAppContext();
 
+  useEffect(() => {
+    if (routinesAndSplitsEnabled) return;
+
+    setIsStartMenuVisible(false);
+    setActiveTab((currentTab) =>
+      currentTab === "routines" ? "home" : currentTab,
+    );
+  }, [routinesAndSplitsEnabled]);
+
   const activeSplit = useMemo(
-    () => workoutSplits.find((split) => split.isActive),
-    [workoutSplits],
+    () =>
+      routinesAndSplitsEnabled
+        ? workoutSplits.find((split) => split.isActive)
+        : undefined,
+    [routinesAndSplitsEnabled, workoutSplits],
   );
 
   const activeSplitDay = useMemo(
@@ -164,6 +158,11 @@ export default function Tabs() {
   };
 
   const startDefaultWorkout = () => {
+    if (!routinesAndSplitsEnabled) {
+      startWorkout(createEmptyWorkout());
+      return;
+    }
+
     if (activeSplit?.id && activeSplitDay?.id) {
       if (activeSplitRoutine) {
         startWorkout(
@@ -200,9 +199,10 @@ export default function Tabs() {
     }
   };
 
-  const startButtonLabel = activeSplitRoutine
-    ? `Start ${activeSplitRoutine.name}`
-    : "Start Workout";
+  const startButtonLabel =
+    routinesAndSplitsEnabled && activeSplitRoutine
+      ? `Start ${activeSplitRoutine.name}`
+      : "Start Workout";
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -222,12 +222,14 @@ export default function Tabs() {
               {startButtonLabel}
             </Text>
           </Pressable>
-          <Pressable
-            style={styles.startMenuButton}
-            onPress={() => setIsStartMenuVisible(true)}
-          >
-            <MaterialIcons name="keyboard-arrow-up" size={28} color="white" />
-          </Pressable>
+          {routinesAndSplitsEnabled && (
+            <Pressable
+              style={styles.startMenuButton}
+              onPress={() => setIsStartMenuVisible(true)}
+            >
+              <MaterialIcons name="keyboard-arrow-up" size={28} color="white" />
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.tabBar}>
@@ -281,27 +283,29 @@ export default function Tabs() {
             </Text>
           </Pressable>
 
-          <Pressable
-            style={styles.tabItem}
-            onPress={() => {
-              selectionFeedback();
-              setActiveTab("routines");
-            }}
-          >
-            <MaterialIcons
-              name="bookmarks"
-              size={28}
-              color={activeTab === "routines" ? "black" : "#8E8E93"}
-            />
-            <Text
-              style={[
-                styles.tabLabel,
-                { color: activeTab === "routines" ? "black" : "#8E8E93" },
-              ]}
+          {routinesAndSplitsEnabled && (
+            <Pressable
+              style={styles.tabItem}
+              onPress={() => {
+                selectionFeedback();
+                setActiveTab("routines");
+              }}
             >
-              Routines
-            </Text>
-          </Pressable>
+              <MaterialIcons
+                name="bookmarks"
+                size={28}
+                color={activeTab === "routines" ? "black" : "#8E8E93"}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: activeTab === "routines" ? "black" : "#8E8E93" },
+                ]}
+              >
+                Routines
+              </Text>
+            </Pressable>
+          )}
 
           <Pressable
             style={styles.tabItem}
@@ -328,7 +332,7 @@ export default function Tabs() {
       </View>
 
       <Modal
-        visible={isStartMenuVisible}
+        visible={routinesAndSplitsEnabled && isStartMenuVisible}
         transparent={true}
         animationType="fade"
         onRequestClose={() => setIsStartMenuVisible(false)}

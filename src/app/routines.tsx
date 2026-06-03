@@ -23,39 +23,23 @@ import type {
   WorkoutSplitDay,
   WorkoutSplitDayType,
   WorkoutSplitDraft,
-  WorkoutSplitScheduleType,
-  WorkoutRoutineWeekday,
 } from "./types/workoutRoutine";
 
 type PlannerTab = "routines" | "splits";
 type CreateModalType = "routine" | "split" | null;
 
-const WEEKDAYS: { value: WorkoutRoutineWeekday; label: string }[] = [
-  { value: "sunday", label: "Sunday" },
-  { value: "monday", label: "Monday" },
-  { value: "tuesday", label: "Tuesday" },
-  { value: "wednesday", label: "Wednesday" },
-  { value: "thursday", label: "Thursday" },
-  { value: "friday", label: "Friday" },
-  { value: "saturday", label: "Saturday" },
-];
-
 interface SplitDayDraft {
   id: string;
   type: WorkoutSplitDayType;
   routineId?: string;
-  weekdays: WorkoutRoutineWeekday[];
 }
 
 const createDraftId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const createEmptySplitDay = (
-  weekday?: WorkoutRoutineWeekday,
-): SplitDayDraft => ({
+const createEmptySplitDay = (): SplitDayDraft => ({
   id: createDraftId(),
-  type: weekday ? "rest" : "routine",
-  weekdays: weekday ? [weekday] : [],
+  type: "routine",
 });
 
 const getSplitDayLabel = (
@@ -77,6 +61,7 @@ export default function Routines() {
     createWorkoutRoutine,
     createWorkoutSplit,
     activateWorkoutSplit,
+    deactivateWorkoutSplit,
   } = useAppContext();
 
   const [activeTab, setActiveTab] = useState<PlannerTab>("routines");
@@ -92,8 +77,6 @@ export default function Routines() {
   >([]);
 
   const [splitName, setSplitName] = useState("");
-  const [splitScheduleType, setSplitScheduleType] =
-    useState<WorkoutSplitScheduleType>("splitOrder");
   const [splitDays, setSplitDays] = useState<SplitDayDraft[]>([
     createEmptySplitDay(),
   ]);
@@ -108,6 +91,11 @@ export default function Routines() {
           (right.updatedAt?.getTime() ?? 0) - (left.updatedAt?.getTime() ?? 0),
       ),
     [workoutRoutines],
+  );
+
+  const activeSplit = useMemo(
+    () => workoutSplits.find((split) => split.isActive),
+    [workoutSplits],
   );
 
   const sortedWorkoutSplits = useMemo(
@@ -149,7 +137,6 @@ export default function Routines() {
   const resetSplitForm = () => {
     const firstDay = createEmptySplitDay();
     setSplitName("");
-    setSplitScheduleType("splitOrder");
     setSplitDays([firstDay]);
     setErrorMessage(null);
     setIsSaving(false);
@@ -264,27 +251,6 @@ export default function Routines() {
     setSplitDays((currentDays) => [...currentDays, nextDay]);
   };
 
-  const handleSplitScheduleTypeChange = (nextType: WorkoutSplitScheduleType) => {
-    setSplitScheduleType(nextType);
-    setSplitDays((currentDays) => {
-      if (nextType === "daysOfWeek") {
-        return WEEKDAYS.map(({ value }) => {
-          const existingDay = currentDays.find((day) =>
-            day.weekdays.includes(value),
-          );
-
-          return existingDay ?? createEmptySplitDay(value);
-        });
-      }
-
-      const splitOrderDays = currentDays.filter(
-        (day) => !day.weekdays.length,
-      );
-
-      return splitOrderDays.length ? splitOrderDays : [createEmptySplitDay()];
-    });
-  };
-
   const removeSplitDay = (dayId: string) => {
     setSplitDays((currentDays) =>
       currentDays.length === 1
@@ -342,33 +308,14 @@ export default function Routines() {
       return null;
     }
 
-    if (
-      splitScheduleType === "daysOfWeek" &&
-      splitDays.every((day) => !day.weekdays.length)
-    ) {
-      setErrorMessage("Choose at least one weekday before saving.");
-      return null;
-    }
-
     return {
       name: trimmedName,
       isActive: false,
       days: normalizedDays,
-      schedule:
-        splitScheduleType === "splitOrder"
-          ? {
-              type: "splitOrder",
-              dayIds: normalizedDays.map((day) => day.id),
-            }
-          : {
-              type: "daysOfWeek",
-              assignments: splitDays.flatMap((day) =>
-                day.weekdays.map((weekday) => ({
-                  weekday,
-                  dayId: day.id,
-                })),
-              ),
-            },
+      schedule: {
+        type: "splitOrder",
+        dayIds: normalizedDays.map((day) => day.id),
+      },
     };
   };
 
@@ -394,6 +341,11 @@ export default function Routines() {
     if (!split.id) return;
 
     await activateWorkoutSplit(split.id, startDayId);
+    setActiveSplitModal(null);
+  };
+
+  const disableActiveSplit = async () => {
+    await deactivateWorkoutSplit();
     setActiveSplitModal(null);
   };
 
@@ -499,71 +451,36 @@ export default function Routines() {
         maxLength={40}
       />
 
-      <Text style={styles.label}>Schedule</Text>
-      <View style={styles.scheduleToggleRow}>
-        <Pressable
-          style={[
-            styles.scheduleToggle,
-            splitScheduleType === "splitOrder" && styles.scheduleToggleActive,
-          ]}
-          onPress={() => handleSplitScheduleTypeChange("splitOrder")}
-        >
-          <MaterialIcons name="repeat" size={16} color="black" />
-          <Text style={styles.scheduleToggleText}>Split Order</Text>
-        </Pressable>
-
-        <Pressable
-          style={[
-            styles.scheduleToggle,
-            splitScheduleType === "daysOfWeek" && styles.scheduleToggleActive,
-          ]}
-          onPress={() => handleSplitScheduleTypeChange("daysOfWeek")}
-        >
-          <MaterialIcons name="event" size={16} color="black" />
-          <Text style={styles.scheduleToggleText}>Weekdays</Text>
-        </Pressable>
-      </View>
-
       <View style={styles.daysHeader}>
         <Text style={styles.sectionTitle}>Split Days</Text>
-        {splitScheduleType === "splitOrder" && (
-          <Pressable style={styles.smallAddButton} onPress={addSplitDay}>
-            <MaterialIcons name="add" size={18} color="black" />
-            <Text style={styles.smallAddButtonText}>Add Day</Text>
-          </Pressable>
-        )}
+        <Pressable style={styles.smallAddButton} onPress={addSplitDay}>
+          <MaterialIcons name="add" size={18} color="black" />
+          <Text style={styles.smallAddButtonText}>Add Day</Text>
+        </Pressable>
       </View>
 
-      {splitDays.map((day, index) => {
-        const dayLabel =
-          splitScheduleType === "daysOfWeek"
-            ? WEEKDAYS.find((weekday) => day.weekdays.includes(weekday.value))
-                ?.label ?? `Day ${index + 1}`
-            : `Day ${index + 1}`;
-
-        return (
-          <View key={day.id} style={styles.dayCard}>
-            <View style={styles.dayHeader}>
-              <View style={styles.dayTitleContainer}>
-                <Text style={styles.dayNameText} numberOfLines={1}>
-                  {dayLabel}
-                </Text>
-              </View>
-
-              {splitScheduleType === "splitOrder" && splitDays.length > 1 && (
-                <Pressable
-                  style={styles.removeDayButton}
-                  onPress={() => removeSplitDay(day.id)}
-                >
-                  <MaterialIcons name="delete-outline" size={22} color="black" />
-                </Pressable>
-              )}
+      {splitDays.map((day, index) => (
+        <View key={day.id} style={styles.dayCard}>
+          <View style={styles.dayHeader}>
+            <View style={styles.dayTitleContainer}>
+              <Text style={styles.dayNameText} numberOfLines={1}>
+                Day {index + 1}
+              </Text>
             </View>
 
-            <View style={styles.dayBody}>{renderSplitDayOptions(day)}</View>
+            {splitDays.length > 1 && (
+              <Pressable
+                style={styles.removeDayButton}
+                onPress={() => removeSplitDay(day.id)}
+              >
+                <MaterialIcons name="delete-outline" size={22} color="black" />
+              </Pressable>
+            )}
           </View>
-        );
-      })}
+
+          <View style={styles.dayBody}>{renderSplitDayOptions(day)}</View>
+        </View>
+      ))}
     </>
   );
 
@@ -630,6 +547,18 @@ export default function Routines() {
           )}
           keyExtractor={(item, index) => item.id ?? `${item.name}-${index}`}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={
+            activeSplit ? (
+              <Pressable
+                style={styles.disableActiveSplitButton}
+                onPress={() => void disableActiveSplit()}
+              >
+                <Text style={styles.disableActiveSplitButtonText}>
+                  Clear active split
+                </Text>
+              </Pressable>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <MaterialIcons name="bookmarks" size={32} color="#8E8E93" />
@@ -739,33 +668,20 @@ export default function Routines() {
               </Pressable>
             </View>
 
-            {activeSplitModal?.schedule.type === "splitOrder" ? (
-              <View style={styles.activeDayList}>
-                {activeSplitModal.days.map((day, index) => (
-                  <Pressable
-                    key={day.id}
-                    style={styles.activeDayOption}
-                    onPress={() => activateSplit(activeSplitModal, day.id)}
-                  >
-                    <Text style={styles.activeDayNumber}>Day {index + 1}</Text>
-                    <Text style={styles.activeDayName}>
-                      {getSplitDayLabel(day, workoutRoutines)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.activeDayList}>
+            <View style={styles.activeDayList}>
+              {activeSplitModal?.days.map((day, index) => (
                 <Pressable
-                  style={[styles.actionButton, styles.saveButton]}
-                  onPress={() => {
-                    if (activeSplitModal) void activateSplit(activeSplitModal);
-                  }}
+                  key={day.id}
+                  style={styles.activeDayOption}
+                  onPress={() => activateSplit(activeSplitModal, day.id)}
                 >
-                  <Text style={styles.saveButtonText}>Set Active</Text>
+                  <Text style={styles.activeDayNumber}>Day {index + 1}</Text>
+                  <Text style={styles.activeDayName}>
+                    {getSplitDayLabel(day, workoutRoutines)}
+                  </Text>
                 </Pressable>
-              </View>
-            )}
+              ))}
+            </View>
           </View>
         </View>
       </Modal>
@@ -835,6 +751,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 18,
     textAlign: "center",
+  },
+  disableActiveSplitButton: {
+    alignSelf: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  disableActiveSplitButtonText: {
+    color: "#8E8E93",
+    fontSize: 11,
+    fontWeight: "800",
   },
   addButton: {
     position: "absolute",
@@ -997,39 +924,6 @@ const styles = StyleSheet.create({
     borderColor: "black",
     backgroundColor: "black",
   },
-  scheduleToggleRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 10,
-  },
-  scheduleToggle: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    borderWidth: 2,
-    borderColor: "black",
-    borderRadius: 8,
-    backgroundColor: "white",
-  },
-  scheduleToggleActive: {
-    backgroundColor: "#F2F2F7",
-  },
-  scheduleToggleText: {
-    color: "black",
-    fontSize: 12,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  helperText: {
-    marginBottom: 18,
-    color: "#8E8E93",
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17,
-  },
   smallAddButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1066,37 +960,10 @@ const styles = StyleSheet.create({
   dayTitleContainer: {
     flex: 1,
   },
-  dayNumber: {
-    color: "#8E8E93",
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
   dayNameText: {
     color: "black",
     fontSize: 16,
     fontWeight: "900",
-  },
-  dayTypeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "#34C759",
-    borderRadius: 999,
-    backgroundColor: "#EAF8EE",
-  },
-  restDayBadge: {
-    borderColor: "#8E8E93",
-    backgroundColor: "#F2F2F7",
-  },
-  dayTypeBadgeText: {
-    color: "#1F8F3A",
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  restDayBadgeText: {
-    color: "#8E8E93",
   },
   removeDayButton: {
     width: 32,
@@ -1110,43 +977,6 @@ const styles = StyleSheet.create({
     borderTopColor: "black",
     backgroundColor: "#F8F8FA",
   },
-  weekdaySection: {
-    marginBottom: 14,
-  },
-  inlineLabel: {
-    marginBottom: 8,
-    color: "#8E8E93",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  weekdayRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  weekdayChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    borderWidth: 2,
-    borderColor: "black",
-    borderRadius: 999,
-    backgroundColor: "white",
-  },
-  weekdayChipSelected: {
-    backgroundColor: "black",
-  },
-  weekdayChipText: {
-    color: "black",
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  weekdayChipTextSelected: {
-    color: "white",
-  },
-
   routineChipGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

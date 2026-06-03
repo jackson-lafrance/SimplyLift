@@ -3,8 +3,12 @@ import { useAppContext } from "./context/appContext";
 import { selectionFeedback } from "./utils/feedback";
 
 export default function Settings() {
-  const { allowUnilateralExercises, setAllowUnilateralExercises } =
-    useAppContext();
+  const {
+    allowUnilateralExercises,
+    setAllowUnilateralExercises,
+    routinesAndSplitsEnabled,
+    setRoutinesAndSplitsEnabled,
+  } = useAppContext();
 
   return (
     <View style={styles.container}>
@@ -25,6 +29,19 @@ export default function Settings() {
           />
         </View>
 
+        <View style={styles.settingCard}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingTitle}>Routines & Splits</Text>
+          </View>
+          <Switch
+            value={routinesAndSplitsEnabled}
+            onValueChange={setRoutinesAndSplitsEnabled}
+            trackColor={{ false: "#D1D1D6", true: "#34C759" }}
+            thumbColor="white"
+            ios_backgroundColor="#D1D1D6"
+          />
+        </View>
+
         <Text style={styles.version}>SimplyLift v1.1.8</Text>
       </View>
     </View>
@@ -38,6 +55,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    gap: 12,
   },
   settingCard: {
     flexDirection: "row",

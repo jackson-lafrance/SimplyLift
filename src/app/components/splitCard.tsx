@@ -9,11 +9,8 @@ export interface SplitCardProps {
 const pluralize = (count: number, singular: string, plural = `${singular}s`) =>
   `${count} ${count === 1 ? singular : plural}`;
 
-const getScheduleLabel = (split: WorkoutSplit) => {
-  if (split.schedule.type === "daysOfWeek") return "Weekday split";
-
-  return `${pluralize(split.days.length, "day")} split`;
-};
+const getScheduleLabel = (split: WorkoutSplit) =>
+  `${pluralize(split.days.length, "day")} split`;
 
 export default function SplitCard({ split, onSetActive }: SplitCardProps) {
   return (

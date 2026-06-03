@@ -18,6 +18,7 @@ import {
   clearFirestoreWorkoutData,
   createWorkoutRoutine as createFirestoreWorkoutRoutine,
   createWorkoutSplit as createFirestoreWorkoutSplit,
+  deactivateWorkoutSplits as deactivateFirestoreWorkoutSplits,
   deleteWorkout,
   deleteWorkoutRoutine as deleteFirestoreWorkoutRoutine,
   deleteWorkoutSplit as deleteFirestoreWorkoutSplit,
@@ -62,6 +63,7 @@ const PAST_WORKOUTS_KEY = "pastWorkouts";
 const WORKOUT_ROUTINES_KEY = "workoutRoutines";
 const WORKOUT_SPLITS_KEY = "workoutSplits";
 const ALLOW_UNILATERAL_EXERCISES_KEY = "allowUnilateralExercises";
+const ROUTINES_AND_SPLITS_ENABLED_KEY = "routinesAndSplitsEnabled";
 const currentWorkoutKey = (uid: string) => `currentWorkout:${uid}`;
 const editingWorkoutKey = (uid: string) => `editingWorkout:${uid}`;
 
@@ -108,6 +110,8 @@ interface AppContextType {
   startWorkout: () => void;
   startEditingWorkout: (workout: Workout) => void;
   cancelWorkoutEdit: () => void;
+  routinesAndSplitsEnabled: boolean;
+  setRoutinesAndSplitsEnabled: Dispatch<SetStateAction<boolean>>;
   createWorkoutRoutine: (routine: WorkoutRoutineDraft) => Promise<string | null>;
   updateWorkoutRoutine: (
     routineId: string,
@@ -124,6 +128,7 @@ interface AppContextType {
     splitId: string,
     currentDayId?: string,
   ) => Promise<void>;
+  deactivateWorkoutSplit: () => Promise<void>;
   finishWorkout: (workout: Workout) => Promise<void>;
   saveEditedWorkout: (workout: Workout) => Promise<void>;
   updateWorkoutName: (workout: Workout, name: string) => Promise<boolean>;
@@ -187,7 +192,11 @@ type StoredWorkoutRoutine = Partial<WorkoutRoutine> & {
   updatedAt?: string | number;
 };
 
-type StoredWorkoutSplit = Omit<WorkoutSplit, "createdAt" | "updatedAt"> & {
+type StoredWorkoutSplit = Omit<
+  WorkoutSplit,
+  "schedule" | "createdAt" | "updatedAt"
+> & {
+  schedule?: Partial<WorkoutSplit["schedule"]>;
   createdAt?: string | number;
   updatedAt?: string | number;
 };
@@ -229,6 +238,15 @@ const parseStoredWorkoutRoutines = (
   }
 };
 
+const normalizeStoredSplitSchedule = (
+  split: StoredWorkoutSplit,
+): WorkoutSplit["schedule"] => ({
+  type: "splitOrder",
+  dayIds: split.schedule?.dayIds?.length
+    ? split.schedule.dayIds
+    : split.days.map((day) => day.id),
+});
+
 const parseStoredWorkoutSplits = (
   rawWorkoutSplits: string | null,
 ): WorkoutSplit[] => {
@@ -238,6 +256,7 @@ const parseStoredWorkoutSplits = (
     return (JSON.parse(rawWorkoutSplits) as StoredWorkoutSplit[]).map(
       (split) => ({
         ...split,
+        schedule: normalizeStoredSplitSchedule(split),
         createdAt: split.createdAt ? new Date(split.createdAt) : undefined,
         updatedAt: split.updatedAt ? new Date(split.updatedAt) : undefined,
       }),
@@ -251,8 +270,6 @@ const createLocalId = (prefix: string) =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const getNextSplitDayId = (split: WorkoutSplit, currentDayId: string) => {
-  if (split.schedule.type !== "splitOrder") return undefined;
-
   const dayIds = split.schedule.dayIds.length
     ? split.schedule.dayIds
     : split.days.map((day) => day.id);
@@ -338,6 +355,8 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     () => filterExercisesWithWorkoutHistory(exerciseList, history),
     [exerciseList, history],
   );
+  const [routinesAndSplitsEnabled, setRoutinesAndSplitsEnabled] =
+    useState(true);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
   const isAppLoading = isAuthLoading || !hasLoadedStorage;
@@ -373,14 +392,21 @@ export default function AppProvider({ children }: { children: ReactNode }) {
 
     const loadSettings = async () => {
       try {
-        const storedAllowUnilateralExercises = await AsyncStorage.getItem(
+        const [
+          [, storedAllowUnilateralExercises],
+          [, storedRoutinesAndSplitsEnabled],
+        ] = await AsyncStorage.multiGet([
           ALLOW_UNILATERAL_EXERCISES_KEY,
-        );
+          ROUTINES_AND_SPLITS_ENABLED_KEY,
+        ]);
 
         if (!isMounted) return;
 
         setAllowUnilateralExercises(
           storedAllowUnilateralExercises === "false" ? false : true,
+        );
+        setRoutinesAndSplitsEnabled(
+          storedRoutinesAndSplitsEnabled === "false" ? false : true,
         );
       } catch (error) {
         console.error(error);
@@ -404,6 +430,15 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       JSON.stringify(allowUnilateralExercises),
     );
   }, [allowUnilateralExercises, hasLoadedSettings]);
+
+  useEffect(() => {
+    if (!hasLoadedSettings) return;
+
+    void AsyncStorage.setItem(
+      ROUTINES_AND_SPLITS_ENABLED_KEY,
+      JSON.stringify(routinesAndSplitsEnabled),
+    );
+  }, [hasLoadedSettings, routinesAndSplitsEnabled]);
 
   useEffect(() => {
     let isMounted = true;
@@ -799,6 +834,27 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     [showAlert, user],
   );
 
+  const deactivateWorkoutSplit = useCallback(async () => {
+    if (!user) {
+      setWorkoutSplits((prev) =>
+        prev.map((split) => ({
+          ...split,
+          isActive: false,
+          currentDayId: undefined,
+          updatedAt: split.isActive ? new Date() : split.updatedAt,
+        })),
+      );
+      return;
+    }
+
+    try {
+      await deactivateFirestoreWorkoutSplits(user.uid);
+    } catch (error) {
+      console.error(error);
+      showAlert("Deactivation Failed", "Could not disable your active split.");
+    }
+  }, [showAlert, user]);
+
   const advanceSplitAfterWorkout = useCallback(
     async (workout: Workout) => {
       if (!workout.splitId || !workout.splitDayId) return;
@@ -1011,6 +1067,8 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         workoutSplits,
         allowUnilateralExercises,
         setAllowUnilateralExercises,
+        routinesAndSplitsEnabled,
+        setRoutinesAndSplitsEnabled,
         createWorkoutRoutine,
         updateWorkoutRoutine,
         deleteWorkoutRoutine,
@@ -1018,6 +1076,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         updateWorkoutSplit,
         deleteWorkoutSplit,
         activateWorkoutSplit,
+        deactivateWorkoutSplit,
         finishWorkout,
         saveEditedWorkout,
         updateWorkoutName,

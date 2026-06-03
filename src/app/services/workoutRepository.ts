@@ -68,7 +68,8 @@ interface FirestoreWorkoutRoutine
 }
 
 interface FirestoreWorkoutSplit
-  extends Omit<WorkoutSplit, "id" | "createdAt" | "updatedAt"> {
+  extends Omit<WorkoutSplit, "id" | "schedule" | "createdAt" | "updatedAt"> {
+  schedule?: Partial<WorkoutSplit["schedule"]>;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
 }
@@ -202,19 +203,33 @@ const toFirestoreWorkoutSplit = (
     days: split.days,
   });
 
+const normalizeFirestoreSplitSchedule = (
+  schedule: FirestoreWorkoutSplit["schedule"],
+  days: WorkoutSplit["days"],
+): WorkoutSplit["schedule"] => ({
+  type: "splitOrder",
+  dayIds: schedule?.dayIds?.length
+    ? schedule.dayIds
+    : days.map((day) => day.id),
+});
+
 const fromFirestoreWorkoutSplit = (
   id: string,
   data: FirestoreWorkoutSplit,
-): WorkoutSplit => ({
-  id,
-  name: data.name,
-  isActive: data.isActive ?? false,
-  currentDayId: data.currentDayId ?? undefined,
-  schedule: data.schedule,
-  days: data.days ?? [],
-  createdAt: timestampToDate(data.createdAt),
-  updatedAt: timestampToDate(data.updatedAt),
-});
+): WorkoutSplit => {
+  const days = data.days ?? [];
+
+  return {
+    id,
+    name: data.name,
+    isActive: data.isActive ?? false,
+    currentDayId: data.currentDayId ?? undefined,
+    schedule: normalizeFirestoreSplitSchedule(data.schedule, days),
+    days,
+    createdAt: timestampToDate(data.createdAt),
+    updatedAt: timestampToDate(data.updatedAt),
+  };
+};
 
 const fromStoredWorkout = (workout: StoredWorkout): Workout => ({
   ...workout,
@@ -435,6 +450,25 @@ export const activateWorkoutSplit = async (
       {
         isActive: isSelectedSplit,
         currentDayId: isSelectedSplit ? currentDayId ?? null : null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+
+  await batch.commit();
+};
+
+export const deactivateWorkoutSplits = async (uid: string) => {
+  const snapshot = await getDocs(workoutSplitsCollection(uid));
+  const batch = writeBatch(requireFirestore());
+
+  snapshot.docs.forEach((splitDoc) => {
+    batch.set(
+      splitDoc.ref,
+      {
+        isActive: false,
+        currentDayId: null,
         updatedAt: serverTimestamp(),
       },
       { merge: true },

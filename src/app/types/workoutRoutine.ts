@@ -1,17 +1,3 @@
-export const WORKOUT_ROUTINE_WEEKDAYS = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-] as const;
-
-export type WorkoutRoutineWeekday =
-  (typeof WORKOUT_ROUTINE_WEEKDAYS)[number];
-
-export type WorkoutSplitScheduleType = "splitOrder" | "daysOfWeek";
 export type WorkoutSplitDayType = "routine" | "rest";
 
 export interface WorkoutRoutineExerciseTemplate {
@@ -47,19 +33,7 @@ export interface WorkoutSplitOrderSchedule {
   dayIds: string[];
 }
 
-export interface WorkoutSplitWeekdayAssignment {
-  weekday: WorkoutRoutineWeekday;
-  dayId: string;
-}
-
-export interface WorkoutSplitDaysOfWeekSchedule {
-  type: "daysOfWeek";
-  assignments: WorkoutSplitWeekdayAssignment[];
-}
-
-export type WorkoutSplitSchedule =
-  | WorkoutSplitOrderSchedule
-  | WorkoutSplitDaysOfWeekSchedule;
+export type WorkoutSplitSchedule = WorkoutSplitOrderSchedule;
 
 export interface WorkoutSplit {
   id?: string;
