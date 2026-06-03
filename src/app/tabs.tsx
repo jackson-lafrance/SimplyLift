@@ -1,8 +1,17 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import React, { useMemo, useState } from "react";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAppContext } from "./context/appContext";
+import type { Exercise, Set, Workout } from "./context/appContext";
+import type { WorkoutRoutine, WorkoutSplit } from "./types/workoutRoutine";
 import ProfileHeader from "./components/profileHeader";
 import { selectionFeedback } from "./utils/feedback";
 
@@ -21,10 +30,162 @@ const TAB_TITLES: Record<TabKey, string> = {
   routines: "Routines",
 };
 
+const WEEKDAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
+const EMPTY_SET: Set = { reps: 0, weight: 0 };
+
+const cloneSet = (set: Set): Set => ({ ...set });
+
+const getDefaultSetsForMode = (
+  sets: Set[] | undefined,
+  isUnilateral: boolean,
+) => {
+  const defaultSets = sets?.length ? sets.map(cloneSet) : [cloneSet(EMPTY_SET)];
+
+  if (!isUnilateral || defaultSets.length % 2 === 0) {
+    return defaultSets;
+  }
+
+  return [...defaultSets, cloneSet(defaultSets[defaultSets.length - 1])];
+};
+
+const createEmptyWorkout = (): Workout => ({
+  name: "New Workout",
+  time: 0,
+  date: new Date(),
+  exercises: [],
+});
+
+const getActiveSplitDay = (split: WorkoutSplit | undefined) => {
+  if (!split) return undefined;
+
+  if (split.schedule.type === "splitOrder") {
+    const dayId =
+      split.currentDayId ?? split.schedule.dayIds[0] ?? split.days[0]?.id;
+    return split.days.find((day) => day.id === dayId) ?? split.days[0];
+  }
+
+  const today = WEEKDAYS[new Date().getDay()];
+  const assignment = split.schedule.assignments.find(
+    (item) => item.weekday === today,
+  );
+
+  return split.days.find((day) => day.id === assignment?.dayId);
+};
+
 export default function Tabs() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [isStartMenuVisible, setIsStartMenuVisible] = useState(false);
   const insets = useSafeAreaInsets();
-  const { startWorkout } = useAppContext();
+  const {
+    startWorkout: startWorkoutFromContext,
+    setCurrentWorkout,
+    exerciseList,
+    history,
+    workoutRoutines,
+    workoutSplits,
+  } = useAppContext();
+
+  const activeSplit = useMemo(
+    () => workoutSplits.find((split) => split.isActive),
+    [workoutSplits],
+  );
+
+  const activeSplitDay = useMemo(
+    () => getActiveSplitDay(activeSplit),
+    [activeSplit],
+  );
+
+  const activeSplitRoutine = useMemo(() => {
+    if (activeSplitDay?.type !== "routine") return undefined;
+    return workoutRoutines.find(
+      (routine) => routine.id === activeSplitDay.routineId,
+    );
+  }, [activeSplitDay, workoutRoutines]);
+
+  const findSavedExercise = (name: string) =>
+    exerciseList.find((exercise) =>
+      exercise.name.toLowerCase() === name.toLowerCase(),
+    );
+
+  const findMostRecentExercise = (name: string): Exercise | null => {
+    const sortedHistory = [...history].sort(
+      (left, right) => right.date.getTime() - left.date.getTime(),
+    );
+
+    for (const workout of sortedHistory) {
+      const exercise = workout.exercises.find(
+        (item) => item.name.toLowerCase() === name.toLowerCase(),
+      );
+      if (exercise) return exercise;
+    }
+
+    return null;
+  };
+
+  const buildWorkoutFromRoutine = (
+    routine: WorkoutRoutine,
+    split?: { splitId?: string; splitDayId?: string },
+  ): Workout => ({
+    name: routine.name || "New Workout",
+    time: 0,
+    date: new Date(),
+    routineId: routine.id,
+    splitId: split?.splitId,
+    splitDayId: split?.splitDayId,
+    exercises: routine.exercises.map((template) => {
+      const savedExercise = findSavedExercise(template.name);
+      const mostRecentExercise = findMostRecentExercise(template.name);
+      const isUnilateral =
+        template.isUnilateral ??
+        savedExercise?.isUnilateral ??
+        mostRecentExercise?.isUnilateral ??
+        false;
+
+      return {
+        name: template.name,
+        isUnilateral,
+        sets: getDefaultSetsForMode(mostRecentExercise?.sets, isUnilateral),
+      };
+    }),
+  });
+
+  const startWorkout = (workout: Workout) => {
+    setIsStartMenuVisible(false);
+    setCurrentWorkout(workout);
+  };
+
+  const startDefaultWorkout = () => {
+    if (activeSplit?.id && activeSplitDay?.id) {
+      if (activeSplitRoutine) {
+        startWorkout(
+          buildWorkoutFromRoutine(activeSplitRoutine, {
+            splitId: activeSplit.id,
+            splitDayId: activeSplitDay.id,
+          }),
+        );
+        return;
+      }
+
+      startWorkout({
+        ...createEmptyWorkout(),
+        splitId: activeSplit.id,
+        splitDayId: activeSplitDay.id,
+      });
+      return;
+    }
+
+    setIsStartMenuVisible(false);
+    startWorkoutFromContext();
+  };
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -39,51 +200,85 @@ export default function Tabs() {
     }
   };
 
+  const startButtonLabel = activeSplitRoutine
+    ? `Start ${activeSplitRoutine.name}`
+    : "Start Workout";
+
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <ProfileHeader title={TAB_TITLES[activeTab]} />
       <View style={styles.screenContainer}>{renderScreen()}</View>
 
       <View style={[styles.shelf, { paddingBottom: insets.bottom + 10 }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.startButton,
-            pressed && styles.startButtonPressed,
-          ]}
-          onPress={startWorkout}
-        >
-          <Text style={styles.startButtonText}>Start Workout</Text>
-        </Pressable>
+        <View style={styles.startButtonRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.startButton,
+              pressed && styles.startButtonPressed,
+            ]}
+            onPress={startDefaultWorkout}
+          >
+            <Text style={styles.startButtonText} numberOfLines={1}>
+              {startButtonLabel}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={styles.startMenuButton}
+            onPress={() => setIsStartMenuVisible(true)}
+          >
+            <MaterialIcons name="keyboard-arrow-up" size={28} color="white" />
+          </Pressable>
+        </View>
 
         <View style={styles.tabBar}>
           <Pressable
-            style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
+            style={({ pressed }) => [
+              styles.tabItem,
+              pressed && styles.tabItemPressed,
+            ]}
             onPress={() => {
               selectionFeedback();
               setActiveTab("home");
             }}
           >
-            <MaterialIcons 
-              name={activeTab === "home" ? "home" : "home"} 
-              size={28} 
-              color={activeTab === "home" ? "black" : "#8E8E93"} 
+            <MaterialIcons
+              name="home"
+              size={28}
+              color={activeTab === "home" ? "black" : "#8E8E93"}
             />
-            <Text style={[styles.tabLabel, { color: activeTab === "home" ? "black" : "#8E8E93" }]}>Home</Text>
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: activeTab === "home" ? "black" : "#8E8E93" },
+              ]}
+            >
+              Home
+            </Text>
           </Pressable>
 
           <Pressable
-            style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
+            style={({ pressed }) => [
+              styles.tabItem,
+              pressed && styles.tabItemPressed,
+            ]}
             onPress={() => {
               selectionFeedback();
               setActiveTab("exercises");
             }}
           >
-            <MaterialIcons 
-              name="fitness-center" 
-              size={28} 
-              color={activeTab === "exercises" ? "black" : "#8E8E93"} 
+            <MaterialIcons
+              name="fitness-center"
+              size={28}
+              color={activeTab === "exercises" ? "black" : "#8E8E93"}
             />
-            <Text style={[styles.tabLabel, { color: activeTab === "exercises" ? "black" : "#8E8E93" }]}>Exercises</Text>
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: activeTab === "exercises" ? "black" : "#8E8E93" },
+              ]}
+            >
+              Exercises
+            </Text>
           </Pressable>
 
           <Pressable
@@ -131,6 +326,49 @@ export default function Tabs() {
           </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={isStartMenuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsStartMenuVisible(false)}
+      >
+        <Pressable
+          style={styles.startMenuOverlay}
+          onPress={() => setIsStartMenuVisible(false)}
+        >
+          <Pressable
+            style={styles.startMenuCard}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <Text style={styles.startMenuTitle}>Start From</Text>
+
+            <ScrollView style={styles.startMenuList}>
+              <Pressable
+                style={styles.startMenuItem}
+                onPress={() => startWorkout(createEmptyWorkout())}
+              >
+                <Text style={styles.startMenuItemTitle}>Empty Workout</Text>
+                <Text style={styles.startMenuItemSubtitle}>Start from scratch</Text>
+              </Pressable>
+
+              {workoutRoutines.map((routine) => (
+                <Pressable
+                  key={routine.id ?? routine.name}
+                  style={styles.startMenuItem}
+                  onPress={() => startWorkout(buildWorkoutFromRoutine(routine))}
+                >
+                  <Text style={styles.startMenuItemTitle}>{routine.name}</Text>
+                  <Text style={styles.startMenuItemSubtitle}>
+                    {routine.exercises.length} exercise
+                    {routine.exercises.length === 1 ? "" : "s"}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -150,14 +388,29 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 16,
   },
-  startButton: {
-    backgroundColor: "black",
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: "center",
+  startButtonRow: {
+    flexDirection: "row",
     marginBottom: 16,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: "black",
+    overflow: "hidden",
+    backgroundColor: "black",
+  },
+  startButton: {
+    flex: 1,
+    backgroundColor: "black",
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  startMenuButton: {
+    width: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    borderLeftWidth: 2,
+    borderLeftColor: "white",
+    backgroundColor: "black",
   },
   startButtonPressed: {
     backgroundColor: "#34C759",
@@ -190,5 +443,48 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 4,
     textTransform: "uppercase",
+  },
+  startMenuOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+  },
+  startMenuCard: {
+    margin: 16,
+    padding: 16,
+    maxHeight: "60%",
+    borderWidth: 2,
+    borderColor: "black",
+    borderRadius: 12,
+    backgroundColor: "white",
+  },
+  startMenuTitle: {
+    marginBottom: 12,
+    color: "black",
+    fontSize: 16,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  startMenuList: {
+    maxHeight: 360,
+  },
+  startMenuItem: {
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "black",
+    borderRadius: 8,
+    backgroundColor: "white",
+  },
+  startMenuItemTitle: {
+    color: "black",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  startMenuItemSubtitle: {
+    marginTop: 2,
+    color: "#8E8E93",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

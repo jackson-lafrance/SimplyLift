@@ -19,7 +19,11 @@ import type { Exercise, Workout } from "../context/appContext";
 import type {
   WorkoutRoutine,
   WorkoutRoutineDraft,
+  WorkoutRoutineExerciseTemplate,
   WorkoutRoutineUpdate,
+  WorkoutSplit,
+  WorkoutSplitDraft,
+  WorkoutSplitUpdate,
 } from "../types/workoutRoutine";
 
 const LEGACY_EXERCISES_KEY = "exercises";
@@ -35,6 +39,9 @@ interface FirestoreWorkout {
   time: number;
   date: Timestamp;
   exercises: Exercise[];
+  routineId?: string;
+  splitId?: string;
+  splitDayId?: string;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -47,8 +54,21 @@ interface FirestoreExercise {
   updatedAt?: unknown;
 }
 
+interface LegacyFirestoreWorkoutRoutine {
+  days?: {
+    exercises?: WorkoutRoutineExerciseTemplate[];
+  }[];
+}
+
 interface FirestoreWorkoutRoutine
-  extends Omit<WorkoutRoutine, "id" | "createdAt" | "updatedAt"> {
+  extends Omit<WorkoutRoutine, "id" | "createdAt" | "updatedAt">,
+    LegacyFirestoreWorkoutRoutine {
+  createdAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
+}
+
+interface FirestoreWorkoutSplit
+  extends Omit<WorkoutSplit, "id" | "createdAt" | "updatedAt"> {
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
 }
@@ -61,12 +81,18 @@ const requireFirestore = () => {
   return firestore;
 };
 
+const isPlainObject = (value: unknown) =>
+  !!value &&
+  typeof value === "object" &&
+  (Object.getPrototypeOf(value) === Object.prototype ||
+    Object.getPrototypeOf(value) === null);
+
 const stripUndefinedValues = <T,>(value: T): T => {
   if (Array.isArray(value)) {
     return value.map(stripUndefinedValues) as T;
   }
 
-  if (value && typeof value === "object" && !(value instanceof Date)) {
+  if (isPlainObject(value)) {
     return Object.entries(value as Record<string, unknown>).reduce(
       (cleaned, [key, nestedValue]) => {
         if (nestedValue !== undefined) {
@@ -97,6 +123,8 @@ const workoutsCollection = (uid: string) => collection(userDoc(uid), "workouts")
 const exercisesCollection = (uid: string) => collection(userDoc(uid), "exercises");
 const workoutRoutinesCollection = (uid: string) =>
   collection(userDoc(uid), "workoutRoutines");
+const workoutSplitsCollection = (uid: string) =>
+  collection(userDoc(uid), "workoutSplits");
 
 const toWorkoutDate = (date: StoredWorkout["date"]): Date => {
   if (date instanceof Date) return date;
@@ -105,12 +133,16 @@ const toWorkoutDate = (date: StoredWorkout["date"]): Date => {
   return new Date(date);
 };
 
-const toFirestoreWorkout = (workout: Workout): FirestoreWorkout => ({
-  name: workout.name,
-  time: workout.time,
-  date: Timestamp.fromDate(workout.date),
-  exercises: workout.exercises,
-});
+const toFirestoreWorkout = (workout: Workout): FirestoreWorkout =>
+  stripUndefinedValues({
+    name: workout.name,
+    time: workout.time,
+    date: Timestamp.fromDate(workout.date),
+    exercises: workout.exercises,
+    routineId: workout.routineId,
+    splitId: workout.splitId,
+    splitDayId: workout.splitDayId,
+  });
 
 const fromFirestoreWorkout = (id: string, data: FirestoreWorkout): Workout => ({
   id,
@@ -118,17 +150,34 @@ const fromFirestoreWorkout = (id: string, data: FirestoreWorkout): Workout => ({
   time: data.time,
   date: data.date.toDate(),
   exercises: data.exercises ?? [],
+  routineId: data.routineId,
+  splitId: data.splitId,
+  splitDayId: data.splitDayId,
 });
+
+const normalizeRoutineExercises = (
+  data: FirestoreWorkoutRoutine,
+): WorkoutRoutineExerciseTemplate[] => {
+  if (Array.isArray(data.exercises)) return data.exercises;
+
+  return (
+    data.days?.flatMap((day) =>
+      (day.exercises ?? []).map((exercise) => ({
+        id: exercise.id,
+        name: exercise.name,
+        isUnilateral: exercise.isUnilateral,
+        notes: exercise.notes,
+      })),
+    ) ?? []
+  );
+};
 
 const toFirestoreWorkoutRoutine = (
   routine: WorkoutRoutineDraft,
 ): Omit<FirestoreWorkoutRoutine, "createdAt" | "updatedAt"> =>
   stripUndefinedValues({
     name: routine.name.trim(),
-    description: routine.description?.trim(),
-    isActive: routine.isActive,
-    schedule: routine.schedule,
-    days: routine.days,
+    exercises: routine.exercises,
   });
 
 const fromFirestoreWorkoutRoutine = (
@@ -137,8 +186,30 @@ const fromFirestoreWorkoutRoutine = (
 ): WorkoutRoutine => ({
   id,
   name: data.name,
-  description: data.description,
-  isActive: data.isActive ?? true,
+  exercises: normalizeRoutineExercises(data),
+  createdAt: timestampToDate(data.createdAt),
+  updatedAt: timestampToDate(data.updatedAt),
+});
+
+const toFirestoreWorkoutSplit = (
+  split: WorkoutSplitDraft,
+): Omit<FirestoreWorkoutSplit, "createdAt" | "updatedAt"> =>
+  stripUndefinedValues({
+    name: split.name.trim(),
+    isActive: split.isActive,
+    currentDayId: split.currentDayId,
+    schedule: split.schedule,
+    days: split.days,
+  });
+
+const fromFirestoreWorkoutSplit = (
+  id: string,
+  data: FirestoreWorkoutSplit,
+): WorkoutSplit => ({
+  id,
+  name: data.name,
+  isActive: data.isActive ?? false,
+  currentDayId: data.currentDayId ?? undefined,
   schedule: data.schedule,
   days: data.days ?? [],
   createdAt: timestampToDate(data.createdAt),
@@ -238,6 +309,32 @@ export const watchWorkoutRoutines = (
   );
 };
 
+export const watchWorkoutSplits = (
+  uid: string,
+  onChange: (workoutSplits: WorkoutSplit[]) => void,
+  onError: (error: Error) => void,
+) => {
+  const workoutSplitsQuery = query(
+    workoutSplitsCollection(uid),
+    orderBy("updatedAt", "desc"),
+  );
+
+  return onSnapshot(
+    workoutSplitsQuery,
+    (snapshot) => {
+      onChange(
+        snapshot.docs.map((splitDoc) =>
+          fromFirestoreWorkoutSplit(
+            splitDoc.id,
+            splitDoc.data() as FirestoreWorkoutSplit,
+          ),
+        ),
+      );
+    },
+    onError,
+  );
+};
+
 export const saveCompletedWorkout = async (uid: string, workout: Workout) => {
   await addDoc(workoutsCollection(uid), {
     ...toFirestoreWorkout(workout),
@@ -293,9 +390,63 @@ export const deleteWorkoutRoutine = async (uid: string, routineId: string) => {
   await deleteDoc(doc(workoutRoutinesCollection(uid), routineId));
 };
 
+export const createWorkoutSplit = async (uid: string, split: WorkoutSplitDraft) => {
+  const splitDoc = await addDoc(workoutSplitsCollection(uid), {
+    ...toFirestoreWorkoutSplit(split),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return splitDoc.id;
+};
+
+export const updateWorkoutSplit = async (
+  uid: string,
+  splitId: string,
+  split: WorkoutSplitUpdate,
+) => {
+  await setDoc(
+    doc(workoutSplitsCollection(uid), splitId),
+    {
+      ...stripUndefinedValues(split),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+};
+
+export const deleteWorkoutSplit = async (uid: string, splitId: string) => {
+  await deleteDoc(doc(workoutSplitsCollection(uid), splitId));
+};
+
+export const activateWorkoutSplit = async (
+  uid: string,
+  splitId: string,
+  currentDayId?: string,
+) => {
+  const snapshot = await getDocs(workoutSplitsCollection(uid));
+  const batch = writeBatch(requireFirestore());
+
+  snapshot.docs.forEach((splitDoc) => {
+    const isSelectedSplit = splitDoc.id === splitId;
+
+    batch.set(
+      splitDoc.ref,
+      {
+        isActive: isSelectedSplit,
+        currentDayId: isSelectedSplit ? currentDayId ?? null : null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+
+  await batch.commit();
+};
+
 const deleteCollectionDocuments = async (
   uid: string,
-  collectionName: "workouts" | "exercises" | "workoutRoutines",
+  collectionName: "workouts" | "exercises" | "workoutRoutines" | "workoutSplits",
 ) => {
   const collectionRef = collection(userDoc(uid), collectionName);
   const snapshot = await getDocs(collectionRef);
@@ -325,6 +476,7 @@ export const clearFirestoreWorkoutData = async (uid: string) => {
   await deleteCollectionDocuments(uid, "workouts");
   await deleteCollectionDocuments(uid, "exercises");
   await deleteCollectionDocuments(uid, "workoutRoutines");
+  await deleteCollectionDocuments(uid, "workoutSplits");
 };
 
 export const upsertExercises = async (uid: string, exercises: Exercise[]) => {

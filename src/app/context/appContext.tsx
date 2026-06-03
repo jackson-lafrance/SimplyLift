@@ -14,18 +14,23 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert, { AlertButton } from "../components/customAlert";
 import { useAuth } from "./authContext";
 import {
+  activateWorkoutSplit as activateFirestoreWorkoutSplit,
   clearFirestoreWorkoutData,
   createWorkoutRoutine as createFirestoreWorkoutRoutine,
+  createWorkoutSplit as createFirestoreWorkoutSplit,
   deleteWorkout,
   deleteWorkoutRoutine as deleteFirestoreWorkoutRoutine,
+  deleteWorkoutSplit as deleteFirestoreWorkoutSplit,
   importLegacyLocalData,
   normalizeExerciseName,
   saveCompletedWorkout,
   updateCompletedWorkout,
   updateWorkoutRoutine as updateFirestoreWorkoutRoutine,
+  updateWorkoutSplit as updateFirestoreWorkoutSplit,
   upsertExercises,
   watchExercises,
   watchWorkoutRoutines,
+  watchWorkoutSplits,
   watchWorkouts,
 } from "../services/workoutRepository";
 import {
@@ -43,7 +48,11 @@ import {
 import type {
   WorkoutRoutine,
   WorkoutRoutineDraft,
+  WorkoutRoutineExerciseTemplate,
   WorkoutRoutineUpdate,
+  WorkoutSplit,
+  WorkoutSplitDraft,
+  WorkoutSplitUpdate,
 } from "../types/workoutRoutine";
 
 const CURRENT_WORKOUT_KEY = "currentWorkout";
@@ -51,6 +60,7 @@ const EDITING_WORKOUT_KEY = "editingWorkout";
 const EXERCISES_KEY = "exercises";
 const PAST_WORKOUTS_KEY = "pastWorkouts";
 const WORKOUT_ROUTINES_KEY = "workoutRoutines";
+const WORKOUT_SPLITS_KEY = "workoutSplits";
 const ALLOW_UNILATERAL_EXERCISES_KEY = "allowUnilateralExercises";
 const currentWorkoutKey = (uid: string) => `currentWorkout:${uid}`;
 const editingWorkoutKey = (uid: string) => `editingWorkout:${uid}`;
@@ -76,6 +86,9 @@ export interface Workout {
   time: number;
   date: Date;
   exercises: Exercise[];
+  routineId?: string;
+  splitId?: string;
+  splitDayId?: string;
 }
 
 interface AppContextType {
@@ -88,6 +101,7 @@ interface AppContextType {
   exerciseList: Exercise[];
   history: Workout[];
   workoutRoutines: WorkoutRoutine[];
+  workoutSplits: WorkoutSplit[];
   allowUnilateralExercises: boolean;
   setAllowUnilateralExercises: Dispatch<SetStateAction<boolean>>;
   isEditingWorkout: boolean;
@@ -100,6 +114,16 @@ interface AppContextType {
     routine: WorkoutRoutineUpdate,
   ) => Promise<void>;
   deleteWorkoutRoutine: (routineId: string) => Promise<void>;
+  createWorkoutSplit: (split: WorkoutSplitDraft) => Promise<string | null>;
+  updateWorkoutSplit: (
+    splitId: string,
+    split: WorkoutSplitUpdate,
+  ) => Promise<void>;
+  deleteWorkoutSplit: (splitId: string) => Promise<void>;
+  activateWorkoutSplit: (
+    splitId: string,
+    currentDayId?: string,
+  ) => Promise<void>;
   finishWorkout: (workout: Workout) => Promise<void>;
   saveEditedWorkout: (workout: Workout) => Promise<void>;
   updateWorkoutName: (workout: Workout, name: string) => Promise<boolean>;
@@ -155,32 +179,90 @@ const parseStoredExercises = (rawExercises: string | null): Exercise[] => {
   }
 };
 
+type StoredWorkoutRoutine = Partial<WorkoutRoutine> & {
+  days?: {
+    exercises?: WorkoutRoutineExerciseTemplate[];
+  }[];
+  createdAt?: string | number;
+  updatedAt?: string | number;
+};
+
+type StoredWorkoutSplit = Omit<WorkoutSplit, "createdAt" | "updatedAt"> & {
+  createdAt?: string | number;
+  updatedAt?: string | number;
+};
+
+const normalizeStoredRoutineExercises = (
+  routine: StoredWorkoutRoutine,
+): WorkoutRoutineExerciseTemplate[] => {
+  if (Array.isArray(routine.exercises)) return routine.exercises;
+
+  return (
+    routine.days?.flatMap((day) =>
+      (day.exercises ?? []).map((exercise) => ({
+        id: exercise.id,
+        name: exercise.name,
+        isUnilateral: exercise.isUnilateral,
+        notes: exercise.notes,
+      })),
+    ) ?? []
+  );
+};
+
 const parseStoredWorkoutRoutines = (
   rawWorkoutRoutines: string | null,
 ): WorkoutRoutine[] => {
   if (!rawWorkoutRoutines) return [];
 
   try {
-    return (
-      JSON.parse(rawWorkoutRoutines) as (Omit<
-        WorkoutRoutine,
-        "createdAt" | "updatedAt"
-      > & {
-        createdAt?: string | number;
-        updatedAt?: string | number;
-      })[]
-    ).map((routine) => ({
-      ...routine,
-      createdAt: routine.createdAt ? new Date(routine.createdAt) : undefined,
-      updatedAt: routine.updatedAt ? new Date(routine.updatedAt) : undefined,
-    }));
+    return (JSON.parse(rawWorkoutRoutines) as StoredWorkoutRoutine[]).map(
+      (routine) => ({
+        id: routine.id,
+        name: routine.name ?? "Untitled Routine",
+        exercises: normalizeStoredRoutineExercises(routine),
+        createdAt: routine.createdAt ? new Date(routine.createdAt) : undefined,
+        updatedAt: routine.updatedAt ? new Date(routine.updatedAt) : undefined,
+      }),
+    );
   } catch {
     return [];
   }
 };
 
-const createLocalWorkoutRoutineId = () =>
-  `routine-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const parseStoredWorkoutSplits = (
+  rawWorkoutSplits: string | null,
+): WorkoutSplit[] => {
+  if (!rawWorkoutSplits) return [];
+
+  try {
+    return (JSON.parse(rawWorkoutSplits) as StoredWorkoutSplit[]).map(
+      (split) => ({
+        ...split,
+        createdAt: split.createdAt ? new Date(split.createdAt) : undefined,
+        updatedAt: split.updatedAt ? new Date(split.updatedAt) : undefined,
+      }),
+    );
+  } catch {
+    return [];
+  }
+};
+
+const createLocalId = (prefix: string) =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const getNextSplitDayId = (split: WorkoutSplit, currentDayId: string) => {
+  if (split.schedule.type !== "splitOrder") return undefined;
+
+  const dayIds = split.schedule.dayIds.length
+    ? split.schedule.dayIds
+    : split.days.map((day) => day.id);
+
+  if (!dayIds.length) return undefined;
+
+  const currentIndex = dayIds.indexOf(currentDayId);
+  const safeCurrentIndex = currentIndex === -1 ? 0 : currentIndex;
+  return dayIds[(safeCurrentIndex + 1) % dayIds.length];
+};
 
 const mergeExerciseList = (
   currentExercises: Exercise[],
@@ -249,6 +331,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
   const [history, setHistory] = useState<Workout[]>([]);
   const [workoutRoutines, setWorkoutRoutines] = useState<WorkoutRoutine[]>([]);
+  const [workoutSplits, setWorkoutSplits] = useState<WorkoutSplit[]>([]);
   const [allowUnilateralExercises, setAllowUnilateralExercises] =
     useState(true);
   const availableExerciseList = useMemo(
@@ -337,13 +420,14 @@ export default function AppProvider({ children }: { children: ReactNode }) {
           [, storedExercises],
           [, storedWorkouts],
           [, storedWorkoutRoutines],
+          [, storedWorkoutSplits],
         ] = await AsyncStorage.multiGet([
           CURRENT_WORKOUT_KEY,
           EDITING_WORKOUT_KEY,
           EXERCISES_KEY,
           PAST_WORKOUTS_KEY,
           WORKOUT_ROUTINES_KEY,
-        ]);
+          WORKOUT_SPLITS_KEY,
         ]);
 
         if (!isMounted) return;
@@ -354,6 +438,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setExerciseList(parseStoredExercises(storedExercises));
         setHistory(parseStoredWorkouts(storedWorkouts));
         setWorkoutRoutines(parseStoredWorkoutRoutines(storedWorkoutRoutines));
+        setWorkoutSplits(parseStoredWorkoutSplits(storedWorkoutSplits));
         setHasLoadedStorage(true);
         return;
       }
@@ -372,6 +457,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       setExerciseList([]);
       setHistory([]);
       setWorkoutRoutines([]);
+      setWorkoutSplits([]);
       setHasLoadedStorage(true);
     };
 
@@ -405,7 +491,16 @@ export default function AppProvider({ children }: { children: ReactNode }) {
 
     return watchWorkoutRoutines(user.uid, setWorkoutRoutines, (error) => {
       console.error(error);
-      showAlert("Routine Sync Error", "Could not load your workout routines.");
+      showAlert("Routine Sync Error", "Could not load your routines.");
+    });
+  }, [showAlert, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    return watchWorkoutSplits(user.uid, setWorkoutSplits, (error) => {
+      console.error(error);
+      showAlert("Split Sync Error", "Could not load your workout splits.");
     });
   }, [showAlert, user]);
 
@@ -510,11 +605,17 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     );
   }, [hasLoadedStorage, isAuthLoading, user, workoutRoutines]);
 
+  useEffect(() => {
+    if (!hasLoadedStorage || isAuthLoading || user) return;
+
+    void AsyncStorage.setItem(WORKOUT_SPLITS_KEY, JSON.stringify(workoutSplits));
+  }, [hasLoadedStorage, isAuthLoading, user, workoutSplits]);
+
   const createWorkoutRoutine = useCallback(
     async (routine: WorkoutRoutineDraft) => {
       if (!user) {
         const now = new Date();
-        const routineId = createLocalWorkoutRoutineId();
+        const routineId = createLocalId("routine");
 
         setWorkoutRoutines((prev) => [
           {
@@ -533,7 +634,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         return await createFirestoreWorkoutRoutine(user.uid, routine);
       } catch (error) {
         console.error(error);
-        showAlert("Save Failed", "Could not save this workout routine.");
+        showAlert("Save Failed", "Could not save this routine.");
         return null;
       }
     },
@@ -562,7 +663,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         await updateFirestoreWorkoutRoutine(user.uid, routineId, routine);
       } catch (error) {
         console.error(error);
-        showAlert("Save Failed", "Could not update this workout routine.");
+        showAlert("Save Failed", "Could not update this routine.");
       }
     },
     [showAlert, user],
@@ -574,6 +675,16 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setWorkoutRoutines((prev) =>
           prev.filter((routine) => routine.id !== routineId),
         );
+        setWorkoutSplits((prev) =>
+          prev.map((split) => ({
+            ...split,
+            days: split.days.map((day) =>
+              day.routineId === routineId
+                ? { ...day, type: "rest", routineId: undefined }
+                : day,
+            ),
+          })),
+        );
         return;
       }
 
@@ -581,10 +692,139 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         await deleteFirestoreWorkoutRoutine(user.uid, routineId);
       } catch (error) {
         console.error(error);
-        showAlert("Delete Failed", "Could not delete this workout routine.");
+        showAlert("Delete Failed", "Could not delete this routine.");
       }
     },
     [showAlert, user],
+  );
+
+  const createWorkoutSplit = useCallback(
+    async (split: WorkoutSplitDraft) => {
+      if (!user) {
+        const now = new Date();
+        const splitId = createLocalId("split");
+
+        setWorkoutSplits((prev) => [
+          {
+            ...split,
+            id: splitId,
+            createdAt: now,
+            updatedAt: now,
+          },
+          ...prev.map((existingSplit) =>
+            split.isActive ? { ...existingSplit, isActive: false } : existingSplit,
+          ),
+        ]);
+
+        return splitId;
+      }
+
+      try {
+        return await createFirestoreWorkoutSplit(user.uid, split);
+      } catch (error) {
+        console.error(error);
+        showAlert("Save Failed", "Could not save this split.");
+        return null;
+      }
+    },
+    [showAlert, user],
+  );
+
+  const updateWorkoutSplit = useCallback(
+    async (splitId: string, split: WorkoutSplitUpdate) => {
+      if (!user) {
+        setWorkoutSplits((prev) =>
+          prev.map((existingSplit) =>
+            existingSplit.id === splitId
+              ? {
+                  ...existingSplit,
+                  ...split,
+                  id: splitId,
+                  updatedAt: new Date(),
+                }
+              : existingSplit,
+          ),
+        );
+        return;
+      }
+
+      try {
+        await updateFirestoreWorkoutSplit(user.uid, splitId, split);
+      } catch (error) {
+        console.error(error);
+        showAlert("Save Failed", "Could not update this split.");
+      }
+    },
+    [showAlert, user],
+  );
+
+  const deleteWorkoutSplit = useCallback(
+    async (splitId: string) => {
+      if (!user) {
+        setWorkoutSplits((prev) => prev.filter((split) => split.id !== splitId));
+        return;
+      }
+
+      try {
+        await deleteFirestoreWorkoutSplit(user.uid, splitId);
+      } catch (error) {
+        console.error(error);
+        showAlert("Delete Failed", "Could not delete this split.");
+      }
+    },
+    [showAlert, user],
+  );
+
+  const activateWorkoutSplit = useCallback(
+    async (splitId: string, currentDayId?: string) => {
+      if (!user) {
+        setWorkoutSplits((prev) =>
+          prev.map((split) => ({
+            ...split,
+            isActive: split.id === splitId,
+            currentDayId: split.id === splitId ? currentDayId : undefined,
+            updatedAt: split.id === splitId ? new Date() : split.updatedAt,
+          })),
+        );
+        return;
+      }
+
+      try {
+        await activateFirestoreWorkoutSplit(user.uid, splitId, currentDayId);
+      } catch (error) {
+        console.error(error);
+        showAlert("Activation Failed", "Could not activate this split.");
+      }
+    },
+    [showAlert, user],
+  );
+
+  const advanceSplitAfterWorkout = useCallback(
+    async (workout: Workout) => {
+      if (!workout.splitId || !workout.splitDayId) return;
+
+      const split = workoutSplits.find((item) => item.id === workout.splitId);
+      if (!split) return;
+
+      const nextDayId = getNextSplitDayId(split, workout.splitDayId);
+      if (!nextDayId) return;
+
+      if (!user) {
+        setWorkoutSplits((prev) =>
+          prev.map((item) =>
+            item.id === split.id
+              ? { ...item, currentDayId: nextDayId, updatedAt: new Date() }
+              : item,
+          ),
+        );
+        return;
+      }
+
+      await updateFirestoreWorkoutSplit(user.uid, workout.splitId, {
+        currentDayId: nextDayId,
+      });
+    },
+    [user, workoutSplits],
   );
 
   const finishWorkout = useCallback(
@@ -593,6 +833,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setHistory((prev) => [...prev, workout]);
         setExerciseList((prev) => mergeExerciseList(prev, workout.exercises));
         setIsEditingWorkout(false);
+        await advanceSplitAfterWorkout(workout);
         setCurrentWorkout(null);
         successFeedback();
         return;
@@ -608,9 +849,22 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         console.error(error);
         warningFeedback();
         showAlert("Save Failed", "Could not save this workout to Firestore.");
+        return;
       }
+
+      try {
+        await advanceSplitAfterWorkout(workout);
+      } catch (error) {
+        console.error(error);
+        showAlert(
+          "Split Update Failed",
+          "Workout saved, but your active split did not advance.",
+        );
+      }
+
+      setCurrentWorkout(null);
     },
-    [setCurrentWorkout, showAlert, user],
+    [advanceSplitAfterWorkout, setCurrentWorkout, showAlert, user],
   );
 
   const saveEditedWorkout = useCallback(
@@ -710,6 +964,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       setHistory([]);
       setExerciseList([]);
       setWorkoutRoutines([]);
+      setWorkoutSplits([]);
     } catch (error) {
       console.error(error);
       showAlert("Clear Failed", "Could not clear your synced workout data.");
@@ -723,11 +978,13 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         PAST_WORKOUTS_KEY,
         EXERCISES_KEY,
         WORKOUT_ROUTINES_KEY,
+        WORKOUT_SPLITS_KEY,
       ]);
       setHistory([]);
       setExerciseList([]);
       setIsEditingWorkout(false);
       setWorkoutRoutines([]);
+      setWorkoutSplits([]);
     } catch (error) {
       console.error(error);
       showAlert("Clear Failed", "Could not clear local workout data.");
@@ -751,11 +1008,16 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         exerciseList: availableExerciseList,
         history,
         workoutRoutines,
+        workoutSplits,
         allowUnilateralExercises,
         setAllowUnilateralExercises,
         createWorkoutRoutine,
         updateWorkoutRoutine,
         deleteWorkoutRoutine,
+        createWorkoutSplit,
+        updateWorkoutSplit,
+        deleteWorkoutSplit,
+        activateWorkoutSplit,
         finishWorkout,
         saveEditedWorkout,
         updateWorkoutName,

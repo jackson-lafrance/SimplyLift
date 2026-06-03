@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  TextInput,
   Modal,
   Animated,
   Dimensions,
@@ -11,7 +10,8 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/appContext";
 import type { Exercise, Set } from "../context/appContext";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import ExerciseNamePicker from "./exerciseNamePicker";
 import {
   impactFeedback,
   selectionFeedback,
@@ -84,17 +84,6 @@ export default function NewExercise({ close }: NewExerciseParams) {
     });
   };
 
-  const suggestions = useMemo(() => {
-    if (!exerciseName.trim()) return [];
-    return exerciseList
-      .filter(
-        (ex) =>
-          ex.name.toLowerCase().includes(exerciseName.toLowerCase()) &&
-          ex.name.toLowerCase() !== exerciseName.toLowerCase(),
-      )
-      .slice(0, 5);
-  }, [exerciseName, exerciseList]);
-
   const findSavedExercise = (name: string) =>
     exerciseList.find((e) => e.name.toLowerCase() === name.toLowerCase());
 
@@ -142,6 +131,14 @@ export default function NewExercise({ close }: NewExerciseParams) {
     );
   };
 
+  const handleExerciseNameChange = (name: string) => {
+    setErrorMessage(null);
+    setExerciseName(name);
+
+    const exactMatch = findSavedExercise(name);
+    if (exactMatch) applyExerciseDefaults(exactMatch.name);
+  };
+
   const handleSelectExercise = (name: string) => {
     setErrorMessage(null);
     setExerciseName(name);
@@ -185,45 +182,11 @@ export default function NewExercise({ close }: NewExerciseParams) {
             { transform: [{ translateY: slideAnim }] }
           ]}
         >
-          <Text style={styles.label}>Exercise Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Bench Press"
-            placeholderTextColor="#c6c6c6" 
-            autoCapitalize="characters"
-            autoComplete="off"
-            autoCorrect={false}
-            spellCheck={false}
-            textContentType="none"
-            maxLength={30}
-            onChangeText={(text) => {
-              setErrorMessage(null);
-              setExerciseName(text);
-              const exactMatch = findSavedExercise(text);
-              if (exactMatch) applyExerciseDefaults(exactMatch.name);
-            }}
+          <ExerciseNamePicker
             value={exerciseName}
+            onChangeText={handleExerciseNameChange}
+            onSelectExercise={handleSelectExercise}
           />
-
-          {suggestions.length > 0 && (
-            <View style={styles.suggestionsContainer}>
-              {suggestions.map((item, index) => (
-                <Pressable
-                  key={index}
-                  style={({ pressed }) => [
-                    styles.suggestionItem,
-                    pressed && styles.suggestionItemPressed,
-                  ]}
-                  onPress={() => {
-                    selectionFeedback();
-                    handleSelectExercise(item.name);
-                  }}
-                >
-                  <Text style={styles.suggestionText}>{item.name}</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
 
           {allowUnilateralExercises && (
             <Pressable
@@ -275,7 +238,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
                 pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
               ]}
               onPress={() => {
-                const trimmedExerciseName = exerciseName.trim();
+                const trimmedExerciseName = exerciseName.trim().toUpperCase();
 
                 if (!trimmedExerciseName) {
                   warningFeedback();
