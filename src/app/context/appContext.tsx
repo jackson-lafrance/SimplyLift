@@ -47,6 +47,7 @@ import {
   warningFeedback,
 } from "../utils/feedback";
 import type {
+  ExerciseTrackingMode,
   WorkoutRoutine,
   WorkoutRoutineDraft,
   WorkoutRoutineExerciseTemplate,
@@ -55,6 +56,13 @@ import type {
   WorkoutSplitDraft,
   WorkoutSplitUpdate,
 } from "../types/workoutRoutine";
+import {
+  getPersistedExerciseTrackingMode,
+  migrateExerciseSummary,
+  migrateWorkoutToSetGroups,
+} from "../utils/exerciseSets";
+
+export type { ExerciseTrackingMode } from "../types/workoutRoutine";
 
 const CURRENT_WORKOUT_KEY = "currentWorkout";
 const EDITING_WORKOUT_KEY = "editingWorkout";
@@ -76,9 +84,26 @@ export interface Set {
   rir?: number;
 }
 
+export type ExerciseSetGroup =
+  | {
+      id: string;
+      type: "standard";
+      set: Set;
+    }
+  | {
+      id: string;
+      type: "leftRight";
+      left: Set;
+      right: Set;
+    };
+
 export interface Exercise {
   name: string;
+  trackingMode?: ExerciseTrackingMode;
+  setGroups?: ExerciseSetGroup[];
+  /** Legacy storage field. New writes should use setGroups. */
   sets?: Set[];
+  /** Legacy storage field. New writes should use trackingMode. */
   isUnilateral?: boolean;
 }
 
@@ -148,10 +173,10 @@ const parseStoredWorkout = (rawWorkout: string | null): Workout | null => {
       date: string | number;
     };
 
-    return {
+    return migrateWorkoutToSetGroups({
       ...parsedWorkout,
       date: new Date(parsedWorkout.date),
-    };
+    });
   } catch {
     return null;
   }
@@ -165,10 +190,12 @@ const parseStoredWorkouts = (rawWorkouts: string | null): Workout[] => {
       JSON.parse(rawWorkouts) as (Omit<Workout, "date"> & {
         date: string | number;
       })[]
-    ).map((workout) => ({
-      ...workout,
-      date: new Date(workout.date),
-    }));
+    ).map((workout) =>
+      migrateWorkoutToSetGroups({
+        ...workout,
+        date: new Date(workout.date),
+      }),
+    );
   } catch {
     return [];
   }
@@ -178,7 +205,9 @@ const parseStoredExercises = (rawExercises: string | null): Exercise[] => {
   if (!rawExercises) return [];
 
   try {
-    return JSON.parse(rawExercises) as Exercise[];
+    return (JSON.parse(rawExercises) as Exercise[]).map(
+      migrateExerciseSummary,
+    );
   } catch {
     return [];
   }
@@ -201,19 +230,26 @@ type StoredWorkoutSplit = Omit<
   updatedAt?: string | number;
 };
 
+const normalizeRoutineExerciseTemplate = (
+  exercise: WorkoutRoutineExerciseTemplate,
+): WorkoutRoutineExerciseTemplate => ({
+  id: exercise.id,
+  name: exercise.name,
+  trackingMode:
+    exercise.trackingMode ?? getPersistedExerciseTrackingMode(exercise),
+  notes: exercise.notes,
+});
+
 const normalizeStoredRoutineExercises = (
   routine: StoredWorkoutRoutine,
 ): WorkoutRoutineExerciseTemplate[] => {
-  if (Array.isArray(routine.exercises)) return routine.exercises;
+  if (Array.isArray(routine.exercises)) {
+    return routine.exercises.map(normalizeRoutineExerciseTemplate);
+  }
 
   return (
     routine.days?.flatMap((day) =>
-      (day.exercises ?? []).map((exercise) => ({
-        id: exercise.id,
-        name: exercise.name,
-        isUnilateral: exercise.isUnilateral,
-        notes: exercise.notes,
-      })),
+      (day.exercises ?? []).map(normalizeRoutineExerciseTemplate),
     ) ?? []
   );
 };
@@ -292,7 +328,7 @@ const mergeExerciseList = (
     if (normalizedName)
       exercisesByName.set(normalizedName, {
         name: exercise.name,
-        isUnilateral: exercise.isUnilateral,
+        trackingMode: getPersistedExerciseTrackingMode(exercise),
       });
   });
 
@@ -304,7 +340,9 @@ const mergeExerciseList = (
 
     exercisesByName.set(normalizedName, {
       name: savedExercise?.name ?? exercise.name.trim(),
-      isUnilateral: exercise.isUnilateral ?? savedExercise?.isUnilateral,
+      trackingMode:
+        getPersistedExerciseTrackingMode(exercise) ??
+        getPersistedExerciseTrackingMode(savedExercise),
     });
   });
 
@@ -648,13 +686,18 @@ export default function AppProvider({ children }: { children: ReactNode }) {
 
   const createWorkoutRoutine = useCallback(
     async (routine: WorkoutRoutineDraft) => {
+      const normalizedRoutine = {
+        ...routine,
+        exercises: routine.exercises.map(normalizeRoutineExerciseTemplate),
+      };
+
       if (!user) {
         const now = new Date();
         const routineId = createLocalId("routine");
 
         setWorkoutRoutines((prev) => [
           {
-            ...routine,
+            ...normalizedRoutine,
             id: routineId,
             createdAt: now,
             updatedAt: now,
@@ -666,7 +709,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        return await createFirestoreWorkoutRoutine(user.uid, routine);
+        return await createFirestoreWorkoutRoutine(user.uid, normalizedRoutine);
       } catch (error) {
         console.error(error);
         showAlert("Save Failed", "Could not save this routine.");
@@ -678,13 +721,20 @@ export default function AppProvider({ children }: { children: ReactNode }) {
 
   const updateWorkoutRoutine = useCallback(
     async (routineId: string, routine: WorkoutRoutineUpdate) => {
+      const normalizedRoutine = routine.exercises
+        ? {
+            ...routine,
+            exercises: routine.exercises.map(normalizeRoutineExerciseTemplate),
+          }
+        : routine;
+
       if (!user) {
         setWorkoutRoutines((prev) =>
           prev.map((existingRoutine) =>
             existingRoutine.id === routineId
               ? {
                   ...existingRoutine,
-                  ...routine,
+                  ...normalizedRoutine,
                   id: routineId,
                   updatedAt: new Date(),
                 }
@@ -695,7 +745,11 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        await updateFirestoreWorkoutRoutine(user.uid, routineId, routine);
+        await updateFirestoreWorkoutRoutine(
+          user.uid,
+          routineId,
+          normalizedRoutine,
+        );
       } catch (error) {
         console.error(error);
         showAlert("Save Failed", "Could not update this routine.");
@@ -885,19 +939,23 @@ export default function AppProvider({ children }: { children: ReactNode }) {
 
   const finishWorkout = useCallback(
     async (workout: Workout) => {
+      const normalizedWorkout = migrateWorkoutToSetGroups(workout);
+
       if (!user) {
-        setHistory((prev) => [...prev, workout]);
-        setExerciseList((prev) => mergeExerciseList(prev, workout.exercises));
+        setHistory((prev) => [...prev, normalizedWorkout]);
+        setExerciseList((prev) =>
+          mergeExerciseList(prev, normalizedWorkout.exercises),
+        );
         setIsEditingWorkout(false);
-        await advanceSplitAfterWorkout(workout);
+        await advanceSplitAfterWorkout(normalizedWorkout);
         setCurrentWorkout(null);
         successFeedback();
         return;
       }
 
       try {
-        await saveCompletedWorkout(user.uid, workout);
-        await upsertExercises(user.uid, workout.exercises);
+        await saveCompletedWorkout(user.uid, normalizedWorkout);
+        await upsertExercises(user.uid, normalizedWorkout.exercises);
         setIsEditingWorkout(false);
         setCurrentWorkout(null);
         successFeedback();
@@ -909,7 +967,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        await advanceSplitAfterWorkout(workout);
+        await advanceSplitAfterWorkout(normalizedWorkout);
       } catch (error) {
         console.error(error);
         showAlert(

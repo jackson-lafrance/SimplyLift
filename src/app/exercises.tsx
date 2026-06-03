@@ -17,6 +17,11 @@ import {
   getSetNumberColor,
 } from "./utils/setDisplay";
 import { selectionFeedback } from "./utils/feedback";
+import {
+  getExerciseTrackingMode,
+  getPersistedExerciseTrackingMode,
+  migrateExerciseToSetGroups,
+} from "./utils/exerciseSets";
 
 const { height } = Dimensions.get("window");
 
@@ -63,10 +68,13 @@ export default function Exercises() {
 
         if (!entry) return [];
 
-        const exercise: Exercise = {
+        const exercise: Exercise = migrateExerciseToSetGroups({
           ...entry,
-          isUnilateral: entry.isUnilateral ?? selectedExercise.isUnilateral,
-        };
+          trackingMode:
+            getPersistedExerciseTrackingMode(entry) ??
+            getPersistedExerciseTrackingMode(selectedExercise) ??
+            "standard",
+        });
 
         return [
           {
@@ -98,8 +106,8 @@ export default function Exercises() {
           >
             <View style={styles.listItemTextContainer}>
               <Text style={styles.exerciseName} numberOfLines={2}>{item.name}</Text>
-              {item.isUnilateral && (
-                <Text style={styles.unilateralBadge}>Unilateral</Text>
+              {getExerciseTrackingMode(item) === "leftRight" && (
+                <Text style={styles.unilateralBadge}>Left / Right</Text>
               )}
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#000" />
@@ -145,22 +153,18 @@ export default function Exercises() {
               renderItem={({ item }) => (
                 <View style={styles.historyCard}>
                   <View style={styles.historyHeader}>
-                    <Text style={styles.dateText}>
+                    <Text style={styles.historyMetaText} numberOfLines={1}>
                       {item.date.toLocaleDateString(undefined, {
-                        weekday: "short",
                         year: "numeric",
                         month: "short",
                         day: "numeric",
-                      })}
-                    </Text>
-                    <Text style={styles.workoutNameText}>
-                      {item.workoutName}
+                      })} · {item.workoutName}
                     </Text>
                   </View>
                   <View style={styles.setsContainer}>
                     {getSetDisplayRows(item.exercise).map(
-                      ({ set, setIndex, displaySetNumber, sideLabel }) => (
-                        <View key={setIndex} style={styles.setRow}>
+                      ({ rowId, set, displaySetNumber, sideLabel }) => (
+                        <View key={rowId} style={styles.setRow}>
                           <View style={styles.setNumberContainer}>
                             <Text
                               style={[
@@ -311,23 +315,15 @@ const styles = StyleSheet.create({
     borderColor: "black",
   },
   historyHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     marginBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#000",
     paddingBottom: 8,
   },
-  dateText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#000",
-    textTransform: "uppercase",
-  },
-  workoutNameText: {
+  historyMetaText: {
     fontSize: 12,
     color: "#8E8E93",
-    fontWeight: "700",
+    fontWeight: "800",
     textTransform: "uppercase",
   },
   setsContainer: {

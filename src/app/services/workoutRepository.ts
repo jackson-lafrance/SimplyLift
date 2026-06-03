@@ -16,6 +16,11 @@ import {
 } from "firebase/firestore";
 import { firestore } from "../../lib/firebase";
 import type { Exercise, Workout } from "../context/appContext";
+import {
+  getPersistedExerciseTrackingMode,
+  migrateExerciseSummary,
+  migrateWorkoutToSetGroups,
+} from "../utils/exerciseSets";
 import type {
   WorkoutRoutine,
   WorkoutRoutineDraft,
@@ -49,6 +54,8 @@ interface FirestoreWorkout {
 interface FirestoreExercise {
   name: string;
   normalizedName: string;
+  trackingMode?: Exercise["trackingMode"];
+  /** Legacy storage field. New writes should use trackingMode. */
   isUnilateral?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -134,41 +141,52 @@ const toWorkoutDate = (date: StoredWorkout["date"]): Date => {
   return new Date(date);
 };
 
-const toFirestoreWorkout = (workout: Workout): FirestoreWorkout =>
-  stripUndefinedValues({
-    name: workout.name,
-    time: workout.time,
-    date: Timestamp.fromDate(workout.date),
-    exercises: workout.exercises,
-    routineId: workout.routineId,
-    splitId: workout.splitId,
-    splitDayId: workout.splitDayId,
+const toFirestoreWorkout = (workout: Workout): FirestoreWorkout => {
+  const normalizedWorkout = migrateWorkoutToSetGroups(workout);
+
+  return stripUndefinedValues({
+    name: normalizedWorkout.name,
+    time: normalizedWorkout.time,
+    date: Timestamp.fromDate(normalizedWorkout.date),
+    exercises: normalizedWorkout.exercises,
+    routineId: normalizedWorkout.routineId,
+    splitId: normalizedWorkout.splitId,
+    splitDayId: normalizedWorkout.splitDayId,
+  });
+};
+
+const fromFirestoreWorkout = (id: string, data: FirestoreWorkout): Workout =>
+  migrateWorkoutToSetGroups({
+    id,
+    name: data.name,
+    time: data.time,
+    date: data.date.toDate(),
+    exercises: data.exercises ?? [],
+    routineId: data.routineId,
+    splitId: data.splitId,
+    splitDayId: data.splitDayId,
   });
 
-const fromFirestoreWorkout = (id: string, data: FirestoreWorkout): Workout => ({
-  id,
-  name: data.name,
-  time: data.time,
-  date: data.date.toDate(),
-  exercises: data.exercises ?? [],
-  routineId: data.routineId,
-  splitId: data.splitId,
-  splitDayId: data.splitDayId,
+const normalizeRoutineExerciseTemplate = (
+  exercise: WorkoutRoutineExerciseTemplate,
+): WorkoutRoutineExerciseTemplate => ({
+  id: exercise.id,
+  name: exercise.name,
+  trackingMode:
+    exercise.trackingMode ?? getPersistedExerciseTrackingMode(exercise),
+  notes: exercise.notes,
 });
 
 const normalizeRoutineExercises = (
   data: FirestoreWorkoutRoutine,
 ): WorkoutRoutineExerciseTemplate[] => {
-  if (Array.isArray(data.exercises)) return data.exercises;
+  if (Array.isArray(data.exercises)) {
+    return data.exercises.map(normalizeRoutineExerciseTemplate);
+  }
 
   return (
     data.days?.flatMap((day) =>
-      (day.exercises ?? []).map((exercise) => ({
-        id: exercise.id,
-        name: exercise.name,
-        isUnilateral: exercise.isUnilateral,
-        notes: exercise.notes,
-      })),
+      (day.exercises ?? []).map(normalizeRoutineExerciseTemplate),
     ) ?? []
   );
 };
@@ -178,7 +196,7 @@ const toFirestoreWorkoutRoutine = (
 ): Omit<FirestoreWorkoutRoutine, "createdAt" | "updatedAt"> =>
   stripUndefinedValues({
     name: routine.name.trim(),
-    exercises: routine.exercises,
+    exercises: routine.exercises.map(normalizeRoutineExerciseTemplate),
   });
 
 const fromFirestoreWorkoutRoutine = (
@@ -231,10 +249,11 @@ const fromFirestoreWorkoutSplit = (
   };
 };
 
-const fromStoredWorkout = (workout: StoredWorkout): Workout => ({
-  ...workout,
-  date: toWorkoutDate(workout.date),
-});
+const fromStoredWorkout = (workout: StoredWorkout): Workout =>
+  migrateWorkoutToSetGroups({
+    ...workout,
+    date: toWorkoutDate(workout.date),
+  });
 
 const workoutImportKey = (workout: Workout) =>
   `${workout.name.trim().toLowerCase()}-${workout.date.getTime()}-${workout.time}`;
@@ -287,10 +306,11 @@ export const watchExercises = (
       onChange(
         snapshot.docs.map((exerciseDoc) => {
           const data = exerciseDoc.data() as FirestoreExercise;
-          return {
+          return migrateExerciseSummary({
             name: data.name,
-            isUnilateral: data.isUnilateral,
-          };
+            trackingMode:
+              data.trackingMode ?? getPersistedExerciseTrackingMode(data),
+          });
         }),
       );
     },
@@ -391,10 +411,17 @@ export const updateWorkoutRoutine = async (
   routineId: string,
   routine: WorkoutRoutineUpdate,
 ) => {
+  const normalizedRoutine = routine.exercises
+    ? {
+        ...routine,
+        exercises: routine.exercises.map(normalizeRoutineExerciseTemplate),
+      }
+    : routine;
+
   await setDoc(
     doc(workoutRoutinesCollection(uid), routineId),
     {
-      ...stripUndefinedValues(routine),
+      ...stripUndefinedValues(normalizedRoutine),
       updatedAt: serverTimestamp(),
     },
     { merge: true },
@@ -519,10 +546,14 @@ export const upsertExercises = async (uid: string, exercises: Exercise[]) => {
   exercises.forEach((exercise) => {
     const normalizedName = normalizeExerciseName(exercise.name);
     if (!normalizedName) return;
+
+    const trackingMode =
+      getPersistedExerciseTrackingMode(exercise) ??
+      getPersistedExerciseTrackingMode(uniqueExercises.get(normalizedName));
+
     uniqueExercises.set(normalizedName, {
       name: exercise.name.trim(),
-      isUnilateral:
-        exercise.isUnilateral ?? uniqueExercises.get(normalizedName)?.isUnilateral,
+      trackingMode,
     });
   });
 
@@ -537,7 +568,8 @@ export const upsertExercises = async (uid: string, exercises: Exercise[]) => {
       {
         name: exercise.name,
         normalizedName,
-        isUnilateral: exercise.isUnilateral ?? false,
+        trackingMode: exercise.trackingMode ?? "standard",
+        isUnilateral: exercise.trackingMode === "leftRight",
         updatedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       },
@@ -552,7 +584,9 @@ const parseLegacyExercises = (rawExercises: string | null): Exercise[] => {
   if (!rawExercises) return [];
 
   try {
-    return JSON.parse(rawExercises) as Exercise[];
+    return (JSON.parse(rawExercises) as Exercise[]).map(
+      migrateExerciseSummary,
+    );
   } catch {
     return [];
   }

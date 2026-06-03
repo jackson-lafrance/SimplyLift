@@ -1,11 +1,18 @@
 import type { Exercise, Set, SetType } from "../context/appContext";
+import {
+  getExerciseSetGroups,
+  type ExerciseSetSlot,
+} from "./exerciseSets";
 
 export type SetTypeOption = SetType | "normal";
 export type SetSideLabel = "L" | "R";
+export type SetSlot = ExerciseSetSlot;
 
 export interface SetDisplayRow {
+  rowId: string;
   set: Set;
-  setIndex: number;
+  groupId: string;
+  setSlot: SetSlot;
   displaySetNumber: number;
   sideLabel?: SetSideLabel;
 }
@@ -29,18 +36,42 @@ export const RIR_COLORS: Record<number, string> = {
 export const RIR_OPTIONS = [0, 1, 2, 3, 4, 5];
 
 export const getSetDisplayRows = (exercise: Exercise): SetDisplayRow[] =>
-  (exercise.sets ?? []).map((set, setIndex) => ({
-    set,
-    setIndex,
-    displaySetNumber: exercise.isUnilateral
-      ? Math.floor(setIndex / 2) + 1
-      : setIndex + 1,
-    sideLabel: exercise.isUnilateral
-      ? setIndex % 2 === 0
-        ? "L"
-        : "R"
-      : undefined,
-  }));
+  getExerciseSetGroups(exercise).flatMap<SetDisplayRow>(
+    (setGroup, setGroupIndex) => {
+      const displaySetNumber = setGroupIndex + 1;
+
+      if (setGroup.type === "leftRight") {
+        return [
+          {
+            rowId: `${setGroup.id}:left`,
+            set: setGroup.left,
+            groupId: setGroup.id,
+            setSlot: "left" as const,
+            displaySetNumber,
+            sideLabel: "L" as const,
+          },
+          {
+            rowId: `${setGroup.id}:right`,
+            set: setGroup.right,
+            groupId: setGroup.id,
+            setSlot: "right" as const,
+            displaySetNumber,
+            sideLabel: "R" as const,
+          },
+        ];
+      }
+
+      return [
+        {
+          rowId: `${setGroup.id}:set`,
+          set: setGroup.set,
+          groupId: setGroup.id,
+          setSlot: "set" as const,
+          displaySetNumber,
+        },
+      ];
+    },
+  );
 
 export const formatSetDisplayLabel = (
   displaySetNumber: number,

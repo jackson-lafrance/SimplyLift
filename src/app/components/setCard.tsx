@@ -17,6 +17,7 @@ import {
   RIR_OPTIONS,
   SET_TYPE_COLORS,
   type SetSideLabel,
+  type SetSlot,
   type SetTypeOption,
 } from "../utils/setDisplay";
 import {
@@ -24,23 +25,27 @@ import {
   selectionFeedback,
   warningFeedback,
 } from "../utils/feedback";
+import {
+  removeSetGroupFromExercise,
+  updateExerciseSetInGroup,
+} from "../utils/exerciseSets";
 
 export interface setProps {
   set: Set;
-  setIndex: number;
+  groupId: string;
+  setSlot: SetSlot;
   displaySetNumber: number;
   sideLabel?: SetSideLabel;
   exerciseName: string;
-  isUnilateral?: boolean;
 }
 
 export default function SetCard({
   set,
-  setIndex,
+  groupId,
+  setSlot,
   displaySetNumber,
   sideLabel,
   exerciseName,
-  isUnilateral = false,
 }: setProps) {
   const {
     setCurrentWorkout,
@@ -62,29 +67,34 @@ export default function SetCard({
   } | null>(null);
   const pendingUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const applyUpdate = useCallback((value: string, field: "weight" | "reps") => {
-    const numValue = parseFloat(value) || 0;
+  const updateWorkoutSet = useCallback(
+    (updateSet: (currentSet: Set) => Set) => {
+      setCurrentWorkout((prev) => {
+        if (!prev) return prev;
 
-    setCurrentWorkout((prev) => {
-      if (!prev) return prev;
+        return {
+          ...prev,
+          exercises: prev.exercises.map((ex) => {
+            if (ex.name !== exerciseName) return ex;
 
-      return {
-        ...prev,
-        exercises: prev.exercises.map((ex) => {
-          if (ex.name !== exerciseName) return ex;
+            return updateExerciseSetInGroup(ex, groupId, setSlot, updateSet);
+          }),
+        };
+      });
+    },
+    [exerciseName, groupId, setCurrentWorkout, setSlot],
+  );
 
-          return {
-            ...ex,
-            sets: ex.sets?.map((se, index) => {
-              if (index !== setIndex) return se;
-
-              return { ...se, [field]: numValue };
-            }),
-          };
-        }),
-      };
-    });
-  }, [exerciseName, setCurrentWorkout, setIndex]);
+  const applyUpdate = useCallback(
+    (value: string, field: "weight" | "reps") => {
+      const numValue = parseFloat(value) || 0;
+      updateWorkoutSet((currentSet) => ({
+        ...currentSet,
+        [field]: numValue,
+      }));
+    },
+    [updateWorkoutSet],
+  );
 
   const flushPendingUpdate = useCallback(() => {
     if (pendingUpdateTimer.current) {
@@ -158,44 +168,43 @@ export default function SetCard({
 
   const handleTypeUpdate = (type: SetTypeOption, rir?: number) => {
     selectionFeedback();
+    updateWorkoutSet((currentSet) => {
+      const { type: _oldType, rir: _oldRir, ...baseSet } = currentSet;
+
+      if (type === "normal") {
+        return baseSet;
+      }
+
+      if (type === "rir") {
+        return {
+          ...baseSet,
+          type: "rir",
+          rir: rir ?? 0,
+        };
+      }
+
+      return {
+        ...baseSet,
+        type,
+      };
+    });
+
+    setIsTypePickerVisible(false);
+  };
+
+  const handleRemoveSetGroup = () => {
     setCurrentWorkout((prev) => {
       if (!prev) return prev;
 
       return {
         ...prev,
-        exercises: prev.exercises.map((ex) => {
-          if (ex.name !== exerciseName) return ex;
+        exercises: prev.exercises.map((exe) => {
+          if (exe.name !== exerciseName) return exe;
 
-          return {
-            ...ex,
-            sets: ex.sets?.map((se, index) => {
-              if (index !== setIndex) return se;
-
-              const { type: _oldType, rir: _oldRir, ...baseSet } = se;
-
-              if (type === "normal") {
-                return baseSet;
-              }
-
-              if (type === "rir") {
-                return {
-                  ...baseSet,
-                  type: "rir",
-                  rir: rir ?? 0,
-                };
-              }
-
-              return {
-                ...baseSet,
-                type,
-              };
-            }),
-          };
+          return removeSetGroupFromExercise(exe, groupId);
         }),
       };
     });
-
-    setIsTypePickerVisible(false);
   };
 
   const setLabel = formatSetDisplayLabel(displaySetNumber, sideLabel);
@@ -213,10 +222,14 @@ export default function SetCard({
             setIsTypePickerVisible(true);
           }}
         >
-          <Text style={[styles.setNumber, { color: getSetNumberColor(set) }]}>{setLabel}</Text>
+          <Text style={[styles.setNumber, { color: getSetNumberColor(set) }]}>
+            {setLabel}
+          </Text>
 
           {set.type === "rir" && typeof set.rir === "number" && (
-            <Text style={[styles.rirLabel, { color: getSetNumberColor(set) }]}>{set.rir}</Text>
+            <Text style={[styles.rirLabel, { color: getSetNumberColor(set) }]}>
+              {set.rir}
+            </Text>
           )}
         </Pressable>
       </View>
@@ -250,29 +263,7 @@ export default function SetCard({
         style={styles.removeButton}
         onPress={() => {
           warningFeedback();
-          setCurrentWorkout((prev) => {
-            if (!prev) return prev;
-
-            const firstPairIndex = setIndex - (setIndex % 2);
-            const indexesToRemove = isUnilateral
-              ? [firstPairIndex, firstPairIndex + 1]
-              : [setIndex];
-
-            return {
-              ...prev,
-              exercises: prev.exercises.map((exe) => {
-                if (exe.name === exerciseName) {
-                  return {
-                    ...exe,
-                    sets: exe.sets?.filter(
-                      (_, index) => !indexesToRemove.includes(index),
-                    ),
-                  };
-                }
-                return exe;
-              }),
-            };
-          });
+          handleRemoveSetGroup();
         }}
       >
         {({ pressed }: { pressed: boolean }) => (
@@ -347,7 +338,11 @@ export default function SetCard({
                   style={[styles.rirOption, { borderColor: RIR_COLORS[rir] }]}
                   onPress={() => handleTypeUpdate("rir", rir)}
                 >
-                  <Text style={[styles.rirOptionText, { color: RIR_COLORS[rir] }]}>{rir}</Text>
+                  <Text
+                    style={[styles.rirOptionText, { color: RIR_COLORS[rir] }]}
+                  >
+                    {rir}
+                  </Text>
                 </Pressable>
               ))}
             </View>

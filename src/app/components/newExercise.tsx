@@ -9,7 +9,11 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/appContext";
-import type { Exercise, Set } from "../context/appContext";
+import type {
+  Exercise,
+  ExerciseSetGroup,
+  ExerciseTrackingMode,
+} from "../context/appContext";
 import { useState, useRef, useEffect } from "react";
 import ExerciseNamePicker from "./exerciseNamePicker";
 import {
@@ -17,35 +21,18 @@ import {
   selectionFeedback,
   warningFeedback,
 } from "../utils/feedback";
+import {
+  convertSetGroupsForTrackingMode,
+  createEmptySetGroup,
+  getDefaultSetGroupsForMode,
+  getPersistedExerciseTrackingMode,
+} from "../utils/exerciseSets";
 
 const { height } = Dimensions.get("window");
 
 interface NewExerciseParams {
   close: () => void;
 }
-
-const EMPTY_SET: Set = { reps: 0, weight: 0 };
-
-const cloneSet = (set: Set): Set => ({ ...set });
-
-const getDefaultSetsForMode = (
-  sets: Set[] | undefined,
-  isUnilateral: boolean,
-) => {
-  const defaultSets = sets?.length ? sets.map(cloneSet) : [cloneSet(EMPTY_SET)];
-
-  if (!isUnilateral || defaultSets.length % 2 === 0) {
-    return defaultSets;
-  }
-
-  return [...defaultSets, cloneSet(defaultSets[defaultSets.length - 1])];
-};
-
-const getBilateralSetsFromUnilateralPairs = (sets: Set[]) => {
-  const bilateralSets = sets.filter((_, index) => index % 2 === 0);
-
-  return bilateralSets.length ? bilateralSets : [cloneSet(EMPTY_SET)];
-};
 
 export default function NewExercise({ close }: NewExerciseParams) {
   const {
@@ -58,10 +45,11 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
   const [exerciseName, setExerciseName] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isUnilateral, setIsUnilateral] = useState(false);
-  const [defaultSet, setDefaultSet] = useState<Set[]>([
-    cloneSet(EMPTY_SET),
-  ]);
+  const [trackingMode, setTrackingMode] =
+    useState<ExerciseTrackingMode>("standard");
+  const [defaultSetGroups, setDefaultSetGroups] = useState<
+    ExerciseSetGroup[]
+  >([createEmptySetGroup("standard")]);
 
   const slideAnim = useRef(new Animated.Value(height)).current;
 
@@ -102,32 +90,26 @@ export default function NewExercise({ close }: NewExerciseParams) {
     return null;
   };
 
-  const findMostRecentSets = (name: string) => {
-    const exercise = findMostRecentExercise(name);
-
-    if (exercise?.sets && exercise.sets.length > 0) {
-      return exercise.sets;
-    }
-
-    return [cloneSet(EMPTY_SET)];
-  };
-
-  const getExerciseUnilateralMode = (name: string) => {
+  const getExerciseModePreference = (name: string) => {
     const savedExercise = findSavedExercise(name);
+    const mostRecentExercise = findMostRecentExercise(name);
 
-    if (typeof savedExercise?.isUnilateral === "boolean") {
-      return savedExercise.isUnilateral;
-    }
-
-    return findMostRecentExercise(name)?.isUnilateral ?? false;
+    return (
+      getPersistedExerciseTrackingMode(savedExercise) ??
+      getPersistedExerciseTrackingMode(mostRecentExercise) ??
+      "standard"
+    );
   };
 
   const applyExerciseDefaults = (name: string) => {
-    const nextIsUnilateral = getExerciseUnilateralMode(name);
+    const nextTrackingMode = getExerciseModePreference(name);
 
-    setIsUnilateral(nextIsUnilateral);
-    setDefaultSet(
-      getDefaultSetsForMode(findMostRecentSets(name), nextIsUnilateral),
+    setTrackingMode(nextTrackingMode);
+    setDefaultSetGroups(
+      getDefaultSetGroupsForMode(
+        findMostRecentExercise(name),
+        nextTrackingMode,
+      ),
     );
   };
 
@@ -145,28 +127,34 @@ export default function NewExercise({ close }: NewExerciseParams) {
     applyExerciseDefaults(name);
   };
 
-  const handleUnilateralChange = (nextIsUnilateral: boolean) => {
-    setIsUnilateral(nextIsUnilateral);
-    setDefaultSet((sets) => {
-      if (!nextIsUnilateral && isUnilateral) {
-        return getBilateralSetsFromUnilateralPairs(sets);
-      }
+  const handleTrackingModeChange = (nextTrackingMode: ExerciseTrackingMode) => {
+    setTrackingMode(nextTrackingMode);
+    setDefaultSetGroups((setGroups) => {
+      const convertedSetGroups = convertSetGroupsForTrackingMode(
+        setGroups,
+        nextTrackingMode,
+      );
 
-      return getDefaultSetsForMode(sets, nextIsUnilateral);
+      return convertedSetGroups.length
+        ? convertedSetGroups
+        : [createEmptySetGroup(nextTrackingMode)];
     });
   };
 
-  const getSubmittedSets = (shouldSaveAsUnilateral: boolean) => {
-    if (shouldSaveAsUnilateral) {
-      return getDefaultSetsForMode(defaultSet, true);
-    }
+  const getSubmittedSetGroups = (
+    submittedTrackingMode: ExerciseTrackingMode,
+  ) => {
+    const convertedSetGroups = convertSetGroupsForTrackingMode(
+      defaultSetGroups,
+      submittedTrackingMode,
+    );
 
-    if (isUnilateral) {
-      return getBilateralSetsFromUnilateralPairs(defaultSet);
-    }
-
-    return getDefaultSetsForMode(defaultSet, false);
+    return convertedSetGroups.length
+      ? convertedSetGroups
+      : [createEmptySetGroup(submittedTrackingMode)];
   };
+
+  const isLeftRightTracking = trackingMode === "leftRight";
 
   return (
     <Modal
@@ -176,10 +164,10 @@ export default function NewExercise({ close }: NewExerciseParams) {
       onRequestClose={handleClose}
     >
       <View style={styles.backgrounder}>
-        <Animated.View 
+        <Animated.View
           style={[
             styles.modalContent,
-            { transform: [{ translateY: slideAnim }] }
+            { transform: [{ translateY: slideAnim }] },
           ]}
         >
           <ExerciseNamePicker
@@ -192,32 +180,34 @@ export default function NewExercise({ close }: NewExerciseParams) {
             <Pressable
               style={[
                 styles.unilateralOption,
-                isUnilateral && styles.unilateralOptionSelected,
+                isLeftRightTracking && styles.unilateralOptionSelected,
               ]}
               onPress={() => {
                 selectionFeedback();
-                handleUnilateralChange(!isUnilateral);
+                handleTrackingModeChange(
+                  isLeftRightTracking ? "standard" : "leftRight",
+                );
               }}
             >
               <View
                 style={[
                   styles.unilateralCheckbox,
-                  isUnilateral && styles.unilateralCheckboxSelected,
+                  isLeftRightTracking && styles.unilateralCheckboxSelected,
                 ]}
               >
-                {isUnilateral && (
+                {isLeftRightTracking && (
                   <MaterialIcons name="check" size={16} color="white" />
                 )}
               </View>
               <View style={styles.unilateralTextContainer}>
-                <Text style={styles.unilateralTitle}>Unilateral exercise</Text>
+                <Text style={styles.unilateralTitle}>
+                  Track left and right separately
+                </Text>
               </View>
             </Pressable>
           )}
 
-          {errorMessage && (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          )}
+          {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
           <View style={styles.buttonContainer}>
             <Pressable
@@ -233,9 +223,12 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
             <Pressable
               style={({ pressed }: { pressed: boolean }) => [
-                styles.button, 
+                styles.button,
                 styles.submitButton,
-                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
+                pressed && {
+                  backgroundColor: "#34C759",
+                  borderColor: "#34C759",
+                },
               ]}
               onPress={() => {
                 const trimmedExerciseName = exerciseName.trim().toUpperCase();
@@ -248,10 +241,12 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
                 impactFeedback();
 
-                const shouldSaveAsUnilateral = allowUnilateralExercises
-                  ? isUnilateral
-                  : getExerciseUnilateralMode(trimmedExerciseName);
-                const submittedSets = getSubmittedSets(shouldSaveAsUnilateral);
+                const submittedTrackingMode = allowUnilateralExercises
+                  ? trackingMode
+                  : getExerciseModePreference(trimmedExerciseName);
+                const submittedSetGroups = getSubmittedSetGroups(
+                  submittedTrackingMode,
+                );
 
                 const exists = currentWorkout?.exercises.some(
                   (e) =>
@@ -274,8 +269,8 @@ export default function NewExercise({ close }: NewExerciseParams) {
                           ...prev.exercises,
                           {
                             name: trimmedExerciseName,
-                            sets: submittedSets,
-                            isUnilateral: shouldSaveAsUnilateral,
+                            trackingMode: submittedTrackingMode,
+                            setGroups: submittedSetGroups,
                           },
                         ],
                       }
@@ -308,47 +303,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "black",
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#8E8E93",
-    marginBottom: 4,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  input: {
-    fontSize: 18,
-    fontWeight: "800",
-    borderWidth: 2,
-    borderColor: "black",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    color: "#000",
-    backgroundColor: "white",
-  },
-  suggestionsContainer: {
-    backgroundColor: "white",
-    borderRadius: 8,
-    marginTop: 8,
-    borderWidth: 2,
-    borderColor: "black",
-    overflow: "hidden",
-  },
-  suggestionItem: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F2F2F7",
-  },
-  suggestionItemPressed: {
-    backgroundColor: "#F2F2F7",
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: "black",
-    fontWeight: "800",
-    textTransform: "uppercase",
   },
   unilateralOption: {
     marginTop: 16,

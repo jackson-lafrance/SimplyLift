@@ -342,8 +342,8 @@ export default function Index() {
                   <Text style={styles.exerciseName}>{exercise.name}</Text>
                   <View style={styles.setsGrid}>
                     {getSetDisplayRows(exercise).map(
-                      ({ set, setIndex, displaySetNumber, sideLabel }) => (
-                        <View key={setIndex} style={styles.setRow}>
+                      ({ rowId, set, displaySetNumber, sideLabel }) => (
+                        <View key={rowId} style={styles.setRow}>
                           <View style={styles.setNumberContainer}>
                             <Text
                               style={[

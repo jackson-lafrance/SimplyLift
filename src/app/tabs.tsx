@@ -10,10 +10,14 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAppContext } from "./context/appContext";
-import type { Exercise, Set, Workout } from "./context/appContext";
+import type { Exercise, Workout } from "./context/appContext";
 import type { WorkoutRoutine, WorkoutSplit } from "./types/workoutRoutine";
 import ProfileHeader from "./components/profileHeader";
 import { selectionFeedback } from "./utils/feedback";
+import {
+  getDefaultSetGroupsForMode,
+  getPersistedExerciseTrackingMode,
+} from "./utils/exerciseSets";
 
 // Screens
 import Index from "./index";
@@ -28,23 +32,6 @@ const TAB_TITLES: Record<TabKey, string> = {
   exercises: "Exercises",
   settings: "Settings",
   routines: "Routines",
-};
-
-const EMPTY_SET: Set = { reps: 0, weight: 0 };
-
-const cloneSet = (set: Set): Set => ({ ...set });
-
-const getDefaultSetsForMode = (
-  sets: Set[] | undefined,
-  isUnilateral: boolean,
-) => {
-  const defaultSets = sets?.length ? sets.map(cloneSet) : [cloneSet(EMPTY_SET)];
-
-  if (!isUnilateral || defaultSets.length % 2 === 0) {
-    return defaultSets;
-  }
-
-  return [...defaultSets, cloneSet(defaultSets[defaultSets.length - 1])];
 };
 
 const createEmptyWorkout = (): Workout => ({
@@ -138,16 +125,16 @@ export default function Tabs() {
     exercises: routine.exercises.map((template) => {
       const savedExercise = findSavedExercise(template.name);
       const mostRecentExercise = findMostRecentExercise(template.name);
-      const isUnilateral =
-        template.isUnilateral ??
-        savedExercise?.isUnilateral ??
-        mostRecentExercise?.isUnilateral ??
-        false;
+      const trackingMode =
+        getPersistedExerciseTrackingMode(template) ??
+        getPersistedExerciseTrackingMode(savedExercise) ??
+        getPersistedExerciseTrackingMode(mostRecentExercise) ??
+        "standard";
 
       return {
         name: template.name,
-        isUnilateral,
-        sets: getDefaultSetsForMode(mostRecentExercise?.sets, isUnilateral),
+        trackingMode,
+        setGroups: getDefaultSetGroupsForMode(mostRecentExercise, trackingMode),
       };
     }),
   });
@@ -353,7 +340,6 @@ export default function Tabs() {
                 onPress={() => startWorkout(createEmptyWorkout())}
               >
                 <Text style={styles.startMenuItemTitle}>Empty Workout</Text>
-                <Text style={styles.startMenuItemSubtitle}>Start from scratch</Text>
               </Pressable>
 
               {workoutRoutines.map((routine) => (
@@ -363,10 +349,6 @@ export default function Tabs() {
                   onPress={() => startWorkout(buildWorkoutFromRoutine(routine))}
                 >
                   <Text style={styles.startMenuItemTitle}>{routine.name}</Text>
-                  <Text style={styles.startMenuItemSubtitle}>
-                    {routine.exercises.length} exercise
-                    {routine.exercises.length === 1 ? "" : "s"}
-                  </Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -484,11 +466,5 @@ const styles = StyleSheet.create({
     color: "black",
     fontSize: 15,
     fontWeight: "900",
-  },
-  startMenuItemSubtitle: {
-    marginTop: 2,
-    color: "#8E8E93",
-    fontSize: 12,
-    fontWeight: "800",
   },
 });

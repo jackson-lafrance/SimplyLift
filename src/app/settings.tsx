@@ -15,7 +15,7 @@ export default function Settings() {
       <View style={styles.content}>
         <View style={styles.settingCard}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.settingTitle}>Unilateral Exercises</Text>
+            <Text style={styles.settingTitle}>Left / Right Tracking</Text>
           </View>
           <Switch
             value={allowUnilateralExercises}

@@ -9,8 +9,12 @@ import {
   View,
 } from "react-native";
 import { useAppContext } from "../context/appContext";
-import type { Exercise, Set } from "../context/appContext";
+import type { Exercise } from "../context/appContext";
 import { getSetDisplayRows } from "../utils/setDisplay";
+import {
+  addSetGroupToExercise,
+  getExerciseTrackingMode,
+} from "../utils/exerciseSets";
 import SetCard from "./setCard";
 import { memo, useEffect, useState } from "react";
 import { impactFeedback, selectionFeedback, warningFeedback } from "../utils/feedback";
@@ -48,33 +52,7 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
         exercises: prev.exercises.map((ex) => {
           if (ex.name !== exercise.name) return ex;
 
-          const sets = ex.sets ?? [];
-          const fallbackSet: Set = { weight: 0, reps: 0 };
-
-          if (ex.isUnilateral) {
-            const lastPairStartIndex = Math.max(
-              0,
-              sets.length - (sets.length % 2 === 0 ? 2 : 1),
-            );
-            const lastLeftSet = sets[lastPairStartIndex] ?? fallbackSet;
-            const lastRightSet = sets[lastPairStartIndex + 1] ?? lastLeftSet;
-
-            return {
-              ...ex,
-              sets: [
-                ...sets,
-                { ...lastLeftSet },
-                { ...lastRightSet },
-              ],
-            };
-          }
-
-          const lastSet = sets[sets.length - 1] ?? fallbackSet;
-
-          return {
-            ...ex,
-            sets: [...sets, { ...lastSet }],
-          };
+          return addSetGroupToExercise(ex);
         }),
       };
     });
@@ -119,8 +97,8 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
         >
           <View style={styles.nameContainer}>
             <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
-            {exercise.isUnilateral && (
-              <Text style={styles.unilateralBadge}>Unilateral</Text>
+            {getExerciseTrackingMode(exercise) === "leftRight" && (
+              <Text style={styles.unilateralBadge}>Left / Right</Text>
             )}
           </View>
           <MaterialIcons
@@ -157,15 +135,15 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
           </View>
 
           {getSetDisplayRows(exercise).map(
-            ({ set, setIndex, displaySetNumber, sideLabel }) => (
+            ({ rowId, set, groupId, setSlot, displaySetNumber, sideLabel }) => (
               <SetCard
-                key={setIndex}
+                key={rowId}
                 set={set}
-                setIndex={setIndex}
+                groupId={groupId}
+                setSlot={setSlot}
                 displaySetNumber={displaySetNumber}
                 sideLabel={sideLabel}
                 exerciseName={exercise.name}
-                isUnilateral={exercise.isUnilateral}
               />
             ),
           )}
@@ -179,7 +157,7 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
           >
             <MaterialIcons name="add" size={18} color="black" />
             <Text style={styles.addSetText}>
-              {exercise.isUnilateral ? "ADD L/R SET" : "ADD SET"}
+              ADD SET
             </Text>
           </Pressable>
         </View>

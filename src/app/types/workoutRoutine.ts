@@ -1,8 +1,12 @@
+export type ExerciseTrackingMode = "standard" | "leftRight";
+
 export type WorkoutSplitDayType = "routine" | "rest";
 
 export interface WorkoutRoutineExerciseTemplate {
   id: string;
   name: string;
+  trackingMode?: ExerciseTrackingMode;
+  /** Legacy storage field. New writes should use trackingMode. */
   isUnilateral?: boolean;
   notes?: string;
 }
