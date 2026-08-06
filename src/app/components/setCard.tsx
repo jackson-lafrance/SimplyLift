@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useAppContext } from "../context/appContext";
 import type { Set } from "../context/appContext";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   formatSetDisplayLabel,
@@ -42,7 +42,10 @@ export default function SetCard({
   exerciseName,
   isUnilateral = false,
 }: setProps) {
-  const { setCurrentWorkout } = useAppContext();
+  const {
+    setCurrentWorkout,
+    registerPendingSetFlush,
+  } = useAppContext();
 
   const [oldWeightText, setOldWeightText] = useState("0");
   const [oldRepText, setOldRepText] = useState("0");
@@ -53,9 +56,13 @@ export default function SetCard({
   const [focusedField, setFocusedField] = useState<"weight" | "reps" | null>(
     null,
   );
-  const pendingUpdate = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingUpdate = useRef<{
+    value: string;
+    field: "weight" | "reps";
+  } | null>(null);
+  const pendingUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const applyUpdate = (value: string, field: "weight" | "reps") => {
+  const applyUpdate = useCallback((value: string, field: "weight" | "reps") => {
     const numValue = parseFloat(value) || 0;
 
     setCurrentWorkout((prev) => {
@@ -77,20 +84,37 @@ export default function SetCard({
         }),
       };
     });
-  };
+  }, [exerciseName, setCurrentWorkout, setIndex]);
+
+  const flushPendingUpdate = useCallback(() => {
+    if (pendingUpdateTimer.current) {
+      clearTimeout(pendingUpdateTimer.current);
+      pendingUpdateTimer.current = null;
+    }
+
+    const update = pendingUpdate.current;
+    pendingUpdate.current = null;
+
+    if (update) applyUpdate(update.value, update.field);
+  }, [applyUpdate]);
 
   const commitUpdate = (value: string, field: "weight" | "reps") => {
-    if (pendingUpdate.current) clearTimeout(pendingUpdate.current);
+    if (pendingUpdateTimer.current) {
+      clearTimeout(pendingUpdateTimer.current);
+      pendingUpdateTimer.current = null;
+    }
     pendingUpdate.current = null;
     applyUpdate(value, field);
   };
 
-  useEffect(
-    () => () => {
-      if (pendingUpdate.current) clearTimeout(pendingUpdate.current);
-    },
-    [],
-  );
+  useEffect(() => {
+    const unregister = registerPendingSetFlush(flushPendingUpdate);
+
+    return () => {
+      unregister();
+      flushPendingUpdate();
+    };
+  }, [flushPendingUpdate, registerPendingSetFlush]);
 
   const handleInputFocus = (field: "weight" | "reps") => {
     impactFeedback();
@@ -125,11 +149,11 @@ export default function SetCard({
     if (field === "weight") setWeightText(value);
     if (field === "reps") setRepText(value);
 
-    if (pendingUpdate.current) clearTimeout(pendingUpdate.current);
-    pendingUpdate.current = setTimeout(() => {
-      applyUpdate(value, field);
-      pendingUpdate.current = null;
-    }, 100);
+    pendingUpdate.current = { value, field };
+    if (pendingUpdateTimer.current) {
+      clearTimeout(pendingUpdateTimer.current);
+    }
+    pendingUpdateTimer.current = setTimeout(flushPendingUpdate, 100);
   };
 
   const handleTypeUpdate = (type: SetTypeOption, rir?: number) => {

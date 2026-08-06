@@ -8,6 +8,7 @@ import {
   Dispatch,
   SetStateAction,
   useMemo,
+  useRef,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert, { AlertButton } from "../components/customAlert";
@@ -71,6 +72,9 @@ interface AppContextType {
   currentWorkout: Workout | null;
   isAppLoading: boolean;
   setCurrentWorkout: Dispatch<SetStateAction<Workout | null>>;
+  getCurrentWorkout: () => Workout | null;
+  registerPendingSetFlush: (flush: () => void) => () => void;
+  flushPendingSetUpdates: () => void;
   exerciseList: Exercise[];
   history: Workout[];
   allowUnilateralExercises: boolean;
@@ -166,7 +170,37 @@ const mergeExerciseList = (
 
 export default function AppProvider({ children }: { children: ReactNode }) {
   const { user, isAuthLoading } = useAuth();
-  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
+  const [currentWorkout, setCurrentWorkoutState] =
+    useState<Workout | null>(null);
+  const currentWorkoutRef = useRef<Workout | null>(null);
+  currentWorkoutRef.current = currentWorkout;
+
+  const setCurrentWorkout: Dispatch<SetStateAction<Workout | null>> =
+    useCallback(
+      (nextWorkout) => {
+        const nextValue =
+          typeof nextWorkout === "function"
+            ? nextWorkout(currentWorkoutRef.current)
+            : nextWorkout;
+
+        currentWorkoutRef.current = nextValue;
+        setCurrentWorkoutState(nextValue);
+      },
+      [],
+    );
+  const getCurrentWorkout = useCallback(
+    () => currentWorkoutRef.current,
+    [],
+  );
+  const pendingSetFlushes = useRef(new Set<() => void>());
+  const registerPendingSetFlush = useCallback((flush: () => void) => {
+    pendingSetFlushes.current.add(flush);
+    return () => pendingSetFlushes.current.delete(flush);
+  }, []);
+  const flushPendingSetUpdates = useCallback(() => {
+    pendingSetFlushes.current.forEach((flush) => flush());
+  }, []);
+
   const [isEditingWorkout, setIsEditingWorkout] = useState(false);
   const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
   const [history, setHistory] = useState<Workout[]>([]);
@@ -296,7 +330,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [isAuthLoading, user]);
+  }, [isAuthLoading, setCurrentWorkout, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -395,18 +429,18 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       date: new Date(),
       exercises: [],
     });
-  }, []);
+  }, [setCurrentWorkout]);
 
   const startEditingWorkout = useCallback((workout: Workout) => {
     selectionFeedback();
     setIsEditingWorkout(true);
     setCurrentWorkout(cloneWorkout(workout));
-  }, []);
+  }, [setCurrentWorkout]);
 
   const cancelWorkoutEdit = useCallback(() => {
     setIsEditingWorkout(false);
     setCurrentWorkout(null);
-  }, []);
+  }, [setCurrentWorkout]);
 
   const finishWorkout = useCallback(
     async (workout: Workout) => {
@@ -431,7 +465,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         showAlert("Save Failed", "Could not save this workout to Firestore.");
       }
     },
-    [showAlert, user],
+    [setCurrentWorkout, showAlert, user],
   );
 
   const saveEditedWorkout = useCallback(
@@ -458,7 +492,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         showAlert("Save Failed", "Could not save these workout changes.");
       }
     },
-    [showAlert, user],
+    [setCurrentWorkout, showAlert, user],
   );
 
   const updateWorkoutName = useCallback(
@@ -535,7 +569,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       showAlert("Clear Failed", "Could not clear your synced workout data.");
       throw error;
     }
-  }, [showAlert, user]);
+  }, [setCurrentWorkout, showAlert, user]);
 
   const clearLoggedOutWorkoutData = useCallback(async () => {
     try {
@@ -556,6 +590,9 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         currentWorkout,
         isAppLoading,
         setCurrentWorkout,
+        getCurrentWorkout,
+        registerPendingSetFlush,
+        flushPendingSetUpdates,
         isEditingWorkout,
         startWorkout,
         startEditingWorkout,

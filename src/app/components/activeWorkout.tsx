@@ -25,6 +25,8 @@ export default function ActiveWorkout() {
   const {
     currentWorkout,
     setCurrentWorkout,
+    getCurrentWorkout,
+    flushPendingSetUpdates,
     isEditingWorkout,
     finishWorkout,
     saveEditedWorkout,
@@ -62,12 +64,14 @@ export default function ActiveWorkout() {
     setDurationText(value);
   };
 
-  const getEditedWorkout = () => {
-    if (!currentWorkout) return null;
+  const getEditedWorkout = (
+    sourceWorkout = getCurrentWorkout() ?? currentWorkout,
+  ) => {
+    if (!sourceWorkout) return null;
 
     const duration = parseWorkoutDuration(durationText);
     const workout = {
-      ...currentWorkout,
+      ...sourceWorkout,
       ...(duration === null ? {} : { time: duration }),
       ...(isEditingWorkout || workoutNameText.trim() === ""
         ? {}
@@ -85,12 +89,16 @@ export default function ActiveWorkout() {
     setIsSaving(true);
 
     try {
+      flushPendingSetUpdates();
+      const latestWorkout = getCurrentWorkout();
+      if (!latestWorkout) return;
+
       const workout = isEditingWorkout
-        ? getEditedWorkout()
+        ? getEditedWorkout(latestWorkout)
         : {
-            ...currentWorkout,
-            name: workoutNameText || oldTitle || currentWorkout.name,
-            time: new Date().getTime() - currentWorkout.date.getTime(),
+            ...latestWorkout,
+            name: workoutNameText || oldTitle || latestWorkout.name,
+            time: new Date().getTime() - latestWorkout.date.getTime(),
           };
 
       if (!workout) return;
@@ -152,8 +160,12 @@ export default function ActiveWorkout() {
                 maxLength={9}
                 value={durationText}
                 onChangeText={handleDurationChange}
-                onSubmitEditing={getEditedWorkout}
-                onBlur={getEditedWorkout}
+                onSubmitEditing={() => {
+                  getEditedWorkout();
+                }}
+                onBlur={() => {
+                  getEditedWorkout();
+                }}
                 placeholder="00:00:00"
               />
             ) : (
