@@ -17,6 +17,7 @@ import { useState, useRef, useEffect } from "react";
 import AuthForm from "./authForm";
 import { getReadableAuthError, useAuth } from "../context/authContext";
 import { useAppContext } from "../context/appContext";
+import { selectionFeedback, warningFeedback } from "../utils/feedback";
 
 const { height } = Dimensions.get("window");
 
@@ -43,8 +44,8 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 60,
-        friction: 12,
+        tension: 100,
+        friction: 14,
       }).start();
     }
   }, [visible, slideAnim]);
@@ -52,7 +53,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
   useEffect(() => {
     Animated.timing(clearPromptAnim, {
       toValue: isClearSyncedPromptVisible ? 1 : 0,
-      duration: 220,
+      duration: 160,
       useNativeDriver: false,
     }).start();
   }, [clearPromptAnim, isClearSyncedPromptVisible]);
@@ -69,7 +70,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
   const handleClose = () => {
     Animated.timing(slideAnim, {
       toValue: height,
-      duration: 200,
+      duration: 160,
       useNativeDriver: true,
     }).start(() => {
       setVisible(false);
@@ -95,6 +96,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
   };
 
   const handleClearSignedInData = async () => {
+    warningFeedback();
     setClearError(null);
     setClearMessage(null);
 
@@ -119,6 +121,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
   };
 
   const handleClearLoggedOutData = async () => {
+    warningFeedback();
     setClearError(null);
     setClearMessage(null);
 
@@ -148,7 +151,10 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
           styles.profileItem,
           pressed && styles.profileItemPressed,
         ]}
-        onPress={() => setVisible(true)}
+        onPress={() => {
+          selectionFeedback();
+          setVisible(true);
+        }}
       >
         <MaterialIcons name="person" size={28} color="black" />
         <Text style={styles.profileLabel}>Profile</Text>
@@ -157,7 +163,7 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
       <Modal
         visible={visible}
         transparent={true}
-        animationType="fade"
+        animationType="none"
         onRequestClose={handleClose}
       >
         <KeyboardAvoidingView
@@ -172,7 +178,14 @@ export default function ProfileHeader({ title }: ProfileHeaderProps) {
           >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{user ? "Profile" : "Account"}</Text>
-              <Pressable onPress={handleClose}>
+              <Pressable
+                hitSlop={8}
+                onPress={() => {
+                  selectionFeedback();
+                  handleClose();
+                }}
+                style={({ pressed }) => [pressed && styles.closeButtonPressed]}
+              >
                 <MaterialIcons name="close" size={28} color="black" />
               </Pressable>
             </View>
@@ -382,6 +395,9 @@ const styles = StyleSheet.create({
   },
   inlinePrompt: {
     overflow: "hidden",
+  },
+  closeButtonPressed: {
+    opacity: 0.5,
   },
   modalHeader: {
     flexDirection: "row",

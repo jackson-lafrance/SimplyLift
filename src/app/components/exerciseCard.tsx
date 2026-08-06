@@ -1,20 +1,45 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { StyleSheet, View, Text, Pressable } from "react-native";
+import {
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from "react-native";
 import { useAppContext } from "../context/appContext";
 import type { Exercise, Set } from "../context/appContext";
 import { getSetDisplayRows } from "../utils/setDisplay";
 import SetCard from "./setCard";
-import { useState } from "react";
+import { memo, useEffect, useState } from "react";
+import { impactFeedback, selectionFeedback, warningFeedback } from "../utils/feedback";
 
 export interface ExerciseCardProps {
   exercise: Exercise;
 }
 
-export default function ExerciseCard({ exercise }: ExerciseCardProps) {
+function ExerciseCard({ exercise }: ExerciseCardProps) {
   const [dropdowned, setDropdowned] = useState(false);
   const { setCurrentWorkout, showAlert } = useAppContext();
 
+  useEffect(() => {
+    if (
+      Platform.OS === "android" &&
+      UIManager.setLayoutAnimationEnabledExperimental
+    ) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  const toggleDropdown = () => {
+    selectionFeedback();
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setDropdowned((prev) => !prev);
+  };
+
   const handleAddSet = () => {
+    impactFeedback();
     setCurrentWorkout((prev) => {
       if (!prev) return prev;
 
@@ -56,6 +81,7 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   };
 
   const handleRemoveExercise = () => {
+    warningFeedback();
     showAlert(
       "Remove Exercise",
       `Remove ${exercise.name} from this workout?`,
@@ -85,8 +111,11 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
     <View style={[styles.container, dropdowned && styles.closedContainer]}>
       <View style={styles.header}>
         <Pressable
-          style={styles.headerToggle}
-          onPress={() => setDropdowned((prev) => !prev)}
+          style={({ pressed }) => [
+            styles.headerToggle,
+            pressed && styles.headerTogglePressed,
+          ]}
+          onPress={toggleDropdown}
         >
           <View style={styles.nameContainer}>
             <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
@@ -102,7 +131,10 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
         </Pressable>
 
         <Pressable
-          style={styles.removeExerciseButton}
+          style={({ pressed }) => [
+            styles.removeExerciseButton,
+            pressed && styles.removeExerciseButtonPressed,
+          ]}
           onPress={handleRemoveExercise}
         >
           {({ pressed }: { pressed: boolean }) => (
@@ -138,7 +170,13 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
             ),
           )}
 
-          <Pressable style={styles.addSetButton} onPress={handleAddSet}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.addSetButton,
+              pressed && styles.addSetButtonPressed,
+            ]}
+            onPress={handleAddSet}
+          >
             <MaterialIcons name="add" size={18} color="black" />
             <Text style={styles.addSetText}>
               {exercise.isUnilateral ? "ADD L/R SET" : "ADD SET"}
@@ -149,6 +187,8 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
     </View>
   );
 }
+
+export default memo(ExerciseCard);
 
 const styles = StyleSheet.create({
   container: {
@@ -178,11 +218,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  headerTogglePressed: {
+    opacity: 0.65,
+  },
   removeExerciseButton: {
     width: 36,
     height: 36,
     alignItems: "center",
     justifyContent: "center",
+  },
+  removeExerciseButtonPressed: {
+    backgroundColor: "#FFE5E5",
+    borderRadius: 6,
   },
   nameContainer: {
     flex: 1,
@@ -229,6 +276,9 @@ const styles = StyleSheet.create({
     borderColor: "black",
     borderStyle: "dashed",
     gap: 4,
+  },
+  addSetButtonPressed: {
+    backgroundColor: "#F2F2F7",
   },
   addSetText: {
     fontSize: 12,

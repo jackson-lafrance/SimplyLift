@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useAppContext } from "../context/appContext";
 import type { Set } from "../context/appContext";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   formatSetDisplayLabel,
@@ -19,6 +19,11 @@ import {
   type SetSideLabel,
   type SetTypeOption,
 } from "../utils/setDisplay";
+import {
+  impactFeedback,
+  selectionFeedback,
+  warningFeedback,
+} from "../utils/feedback";
 
 export interface setProps {
   set: Set;
@@ -45,33 +50,12 @@ export default function SetCard({
   const [repText, setRepText] = useState(set?.reps.toString() || "0");
 
   const [isTypePickerVisible, setIsTypePickerVisible] = useState(false);
+  const [focusedField, setFocusedField] = useState<"weight" | "reps" | null>(
+    null,
+  );
+  const pendingUpdate = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleInputFocus = (field: "weight" | "reps") => {
-    if (field === "weight") {
-      setOldWeightText(set?.weight.toString() || "0");
-      setWeightText("");
-    }
-
-    if (field === "reps") {
-      setOldRepText(set?.reps.toString() || "0");
-      setRepText("");
-    }
-  };
-
-  const handleInputBlur = (field: "weight" | "reps") => {
-    if (field === "weight" && weightText === "") {
-      handleUpdate(oldWeightText, "weight");
-    }
-
-    if (field === "reps" && repText === "") {
-      handleUpdate(oldRepText, "reps");
-    }
-  };
-
-  const handleUpdate = (value: string, field: "weight" | "reps") => {
-    if (field === "weight") setWeightText(value);
-    if (field === "reps") setRepText(value);
-
+  const applyUpdate = (value: string, field: "weight" | "reps") => {
     const numValue = parseFloat(value) || 0;
 
     setCurrentWorkout((prev) => {
@@ -95,7 +79,61 @@ export default function SetCard({
     });
   };
 
+  const commitUpdate = (value: string, field: "weight" | "reps") => {
+    if (pendingUpdate.current) clearTimeout(pendingUpdate.current);
+    pendingUpdate.current = null;
+    applyUpdate(value, field);
+  };
+
+  useEffect(
+    () => () => {
+      if (pendingUpdate.current) clearTimeout(pendingUpdate.current);
+    },
+    [],
+  );
+
+  const handleInputFocus = (field: "weight" | "reps") => {
+    impactFeedback();
+    setFocusedField(field);
+    if (field === "weight") {
+      setOldWeightText(set?.weight.toString() || "0");
+      setWeightText("");
+    }
+
+    if (field === "reps") {
+      setOldRepText(set?.reps.toString() || "0");
+      setRepText("");
+    }
+  };
+
+  const handleInputBlur = (field: "weight" | "reps") => {
+    setFocusedField(null);
+
+    const value = field === "weight" ? weightText : repText;
+    const fallback = field === "weight" ? oldWeightText : oldRepText;
+    const nextValue = value === "" ? fallback : value;
+
+    if (value === "") {
+      if (field === "weight") setWeightText(fallback);
+      if (field === "reps") setRepText(fallback);
+    }
+
+    commitUpdate(nextValue, field);
+  };
+
+  const handleUpdate = (value: string, field: "weight" | "reps") => {
+    if (field === "weight") setWeightText(value);
+    if (field === "reps") setRepText(value);
+
+    if (pendingUpdate.current) clearTimeout(pendingUpdate.current);
+    pendingUpdate.current = setTimeout(() => {
+      applyUpdate(value, field);
+      pendingUpdate.current = null;
+    }, 100);
+  };
+
   const handleTypeUpdate = (type: SetTypeOption, rir?: number) => {
+    selectionFeedback();
     setCurrentWorkout((prev) => {
       if (!prev) return prev;
 
@@ -142,8 +180,14 @@ export default function SetCard({
     <View style={styles.container}>
       <View style={styles.numberCol}>
         <Pressable
-          style={styles.setNumberButton}
-          onPress={() => setIsTypePickerVisible(true)}
+          style={({ pressed }) => [
+            styles.setNumberButton,
+            pressed && styles.setNumberButtonPressed,
+          ]}
+          onPress={() => {
+            impactFeedback();
+            setIsTypePickerVisible(true);
+          }}
         >
           <Text style={[styles.setNumber, { color: getSetNumberColor(set) }]}>{setLabel}</Text>
 
@@ -154,7 +198,7 @@ export default function SetCard({
       </View>
       <View style={styles.inputCol}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, focusedField === "weight" && styles.inputFocused]}
           keyboardType="numeric"
           onFocus={() => handleInputFocus("weight")}
           onBlur={() => handleInputBlur("weight")}
@@ -167,7 +211,7 @@ export default function SetCard({
 
       <View style={styles.inputCol}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, focusedField === "reps" && styles.inputFocused]}
           keyboardType="numeric"
           onFocus={() => handleInputFocus("reps")}
           onBlur={() => handleInputBlur("reps")}
@@ -180,7 +224,8 @@ export default function SetCard({
 
       <Pressable
         style={styles.removeButton}
-        onPress={() =>
+        onPress={() => {
+          warningFeedback();
           setCurrentWorkout((prev) => {
             if (!prev) return prev;
 
@@ -203,8 +248,8 @@ export default function SetCard({
                 return exe;
               }),
             };
-          })
-        }
+          });
+        }}
       >
         {({ pressed }: { pressed: boolean }) => (
           <MaterialIcons
@@ -306,6 +351,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  setNumberButtonPressed: {
+    backgroundColor: "#F2F2F7",
+    borderRadius: 6,
+  },
   setNumber: {
     fontSize: 14,
     fontWeight: "800",
@@ -335,6 +384,10 @@ const styles = StyleSheet.create({
     color: "black",
     borderWidth: 1,
     borderColor: "#E5E5EA",
+  },
+  inputFocused: {
+    borderColor: "black",
+    backgroundColor: "white",
   },
   removeButton: {
     width: 32,

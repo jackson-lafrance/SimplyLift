@@ -1,4 +1,5 @@
 import {
+  ActivityIndicator,
   StyleSheet,
   Pressable,
   Text,
@@ -18,6 +19,7 @@ import {
   formatWorkoutDuration,
   parseWorkoutDuration,
 } from "../utils/workoutEditing";
+import { impactFeedback } from "../utils/feedback";
 
 export default function ActiveWorkout() {
   const {
@@ -38,9 +40,13 @@ export default function ActiveWorkout() {
   );
 
   const [oldTitle, setOldTitle] = useState("");
+  const [workoutNameText, setWorkoutNameText] = useState(
+    currentWorkout?.name ?? "",
+  );
   const [durationText, setDurationText] = useState(
     formatWorkoutDuration(currentWorkout?.time ?? 0),
   );
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!currentWorkout || isEditingWorkout) return;
@@ -54,22 +60,49 @@ export default function ActiveWorkout() {
 
   const handleDurationChange = (value: string) => {
     setDurationText(value);
-
-    const duration = parseWorkoutDuration(value);
-    if (duration === null) return;
-
-    setCurrentWorkout((prev) => (prev ? { ...prev, time: duration } : prev));
   };
 
   const getEditedWorkout = () => {
     if (!currentWorkout) return null;
 
     const duration = parseWorkoutDuration(durationText);
-    const workout =
-      duration === null ? currentWorkout : { ...currentWorkout, time: duration };
+    const workout = {
+      ...currentWorkout,
+      ...(duration === null ? {} : { time: duration }),
+      ...(isEditingWorkout || workoutNameText.trim() === ""
+        ? {}
+        : { name: workoutNameText }),
+    };
 
     setDurationText(formatWorkoutDuration(workout.time));
     return workout;
+  };
+
+  const saveCurrentWorkout = async () => {
+    if (!currentWorkout || isSaving) return;
+
+    impactFeedback();
+    setIsSaving(true);
+
+    try {
+      const workout = isEditingWorkout
+        ? getEditedWorkout()
+        : {
+            ...currentWorkout,
+            name: workoutNameText || oldTitle || currentWorkout.name,
+            time: new Date().getTime() - currentWorkout.date.getTime(),
+          };
+
+      if (!workout) return;
+
+      if (isEditingWorkout) {
+        await saveEditedWorkout(workout);
+      } else {
+        await finishWorkout(workout);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!currentWorkout) return null;
@@ -93,23 +126,20 @@ export default function ActiveWorkout() {
               style={styles.title}
               autoCapitalize="characters"
               placeholder={oldTitle}
-              onChangeText={(text) =>
-                setCurrentWorkout((prev) =>
-                  prev ? { ...prev, name: text } : prev,
-                )
-              }
+              onChangeText={setWorkoutNameText}
               onFocus={() => {
-                setOldTitle(currentWorkout.name);
-                setCurrentWorkout((prev) =>
-                  prev ? { ...prev, name: "" } : prev,
-                );
+                impactFeedback();
+                setOldTitle(workoutNameText || currentWorkout.name);
+                setWorkoutNameText("");
               }}
               onBlur={() => {
+                const nextName = workoutNameText || oldTitle || currentWorkout.name;
+                setWorkoutNameText(nextName);
                 setCurrentWorkout((prev) =>
-                  prev && prev.name === "" ? { ...prev, name: oldTitle } : prev,
+                  prev ? { ...prev, name: nextName } : prev,
                 );
               }}
-              value={currentWorkout.name}
+              value={workoutNameText}
             />
           )}
           <View style={styles.timerContainer}>
@@ -135,6 +165,7 @@ export default function ActiveWorkout() {
 
       <FlatList
         data={currentWorkout.exercises}
+        keyExtractor={(item) => item.name}
         renderItem={({ item }) => (
           <View style={styles.exerciseWrapper}>
             <ExerciseCard exercise={item} />
@@ -144,6 +175,7 @@ export default function ActiveWorkout() {
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        removeClippedSubviews
       />
 
       <View style={[styles.bottomShelf, { paddingBottom: insets.bottom + 10 }]}>
@@ -177,6 +209,7 @@ export default function ActiveWorkout() {
                 },
               ]);
             }}
+            disabled={isSaving}
             style={styles.shelfButton}
           >
             {({ pressed }: { pressed: boolean }) => (
@@ -194,8 +227,15 @@ export default function ActiveWorkout() {
           </Pressable>
 
           <Pressable
-            style={styles.mainActionButton}
-            onPress={() => setVisible(true)}
+            style={({ pressed }) => [
+              styles.mainActionButton,
+              pressed && styles.mainActionButtonPressed,
+            ]}
+            disabled={isSaving}
+            onPress={() => {
+              impactFeedback();
+              setVisible(true);
+            }}
           >
             <Text style={styles.mainActionButtonText}>Add Exercise</Text>
           </Pressable>
@@ -203,8 +243,7 @@ export default function ActiveWorkout() {
           <Pressable
             onPress={() => {
               if (isEditingWorkout) {
-                const editedWorkout = getEditedWorkout();
-                if (editedWorkout) void saveEditedWorkout(editedWorkout);
+                void saveCurrentWorkout();
                 return;
               }
 
@@ -216,26 +255,28 @@ export default function ActiveWorkout() {
                 {
                   text: "Submit",
                   onPress: () => {
-                    void finishWorkout({
-                      ...currentWorkout,
-                      time: new Date().getTime() - currentWorkout.date.getTime(),
-                    });
+                    void saveCurrentWorkout();
                   },
                   style: "destructive",
                 },
               ]);
             }}
+            disabled={isSaving}
             style={styles.shelfButton}
           >
             {({ pressed }: { pressed: boolean }) => (
               <>
-                <MaterialIcons
-                  name="check"
-                  size={24}
-                  color={pressed ? "#34C759" : "black"}
-                />
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#34C759" />
+                ) : (
+                  <MaterialIcons
+                    name="check"
+                    size={24}
+                    color={pressed ? "#34C759" : "black"}
+                  />
+                )}
                 <Text style={[styles.shelfButtonLabel, pressed && { color: "#34C759" }]}>
-                  {isEditingWorkout ? "Save" : "Finish"}
+                  {isSaving ? "Saving…" : isEditingWorkout ? "Save" : "Finish"}
                 </Text>
               </>
             )}
@@ -333,6 +374,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "black",
+  },
+  mainActionButtonPressed: {
+    backgroundColor: "#34C759",
+    borderColor: "#34C759",
   },
   mainActionButtonText: {
     color: "white",

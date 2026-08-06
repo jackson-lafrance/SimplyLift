@@ -6,6 +6,7 @@ import {
   View,
   Pressable,
 } from "react-native";
+import { selectionFeedback, warningFeedback } from "../utils/feedback";
 
 export interface AlertButton {
   text: string;
@@ -55,6 +56,11 @@ export default function CustomAlert({
                 <Pressable
                   key={index}
                   onPress={() => {
+                    if (isDestructive) {
+                      warningFeedback();
+                    } else {
+                      selectionFeedback();
+                    }
                     if (btn.onPress) btn.onPress();
                     onClose();
                   }}

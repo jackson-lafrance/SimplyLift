@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { getReadableAuthError, useAuth } from "../context/authContext";
+import { impactFeedback, selectionFeedback } from "../utils/feedback";
 
 type AuthMode = "signIn" | "signUp" | "reset";
 
@@ -40,6 +41,7 @@ export default function AuthForm({ onAuthenticated }: AuthFormProps) {
       : "Sign In";
 
   const handleSubmit = async () => {
+    impactFeedback();
     setError(null);
     setMessage(null);
 
@@ -128,14 +130,24 @@ export default function AuthForm({ onAuthenticated }: AuthFormProps) {
 
       <View style={styles.linkRow}>
         {!isResetMode && (
-          <Pressable onPress={() => setMode(isSignUpMode ? "signIn" : "signUp")}>
+          <Pressable
+            onPress={() => {
+              selectionFeedback();
+              setMode(isSignUpMode ? "signIn" : "signUp");
+            }}
+          >
             <Text style={styles.linkText}>
               {isSignUpMode ? "Have an account? Sign in" : "Need an account? Sign up"}
             </Text>
           </Pressable>
         )}
 
-        <Pressable onPress={() => setMode(isResetMode ? "signIn" : "reset")}>
+        <Pressable
+          onPress={() => {
+            selectionFeedback();
+            setMode(isResetMode ? "signIn" : "reset");
+          }}
+        >
           <Text style={styles.linkText}>
             {isResetMode ? "Back to sign in" : "Forgot password?"}
           </Text>

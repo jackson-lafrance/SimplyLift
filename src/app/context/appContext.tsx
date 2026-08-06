@@ -29,6 +29,12 @@ import {
   replaceWorkout,
 } from "../utils/workoutEditing";
 import { filterExercisesWithWorkoutHistory } from "../utils/exerciseVisibility";
+import {
+  impactFeedback,
+  selectionFeedback,
+  successFeedback,
+  warningFeedback,
+} from "../utils/feedback";
 
 const CURRENT_WORKOUT_KEY = "currentWorkout";
 const EDITING_WORKOUT_KEY = "editingWorkout";
@@ -63,6 +69,7 @@ export interface Workout {
 
 interface AppContextType {
   currentWorkout: Workout | null;
+  isAppLoading: boolean;
   setCurrentWorkout: Dispatch<SetStateAction<Workout | null>>;
   exerciseList: Exercise[];
   history: Workout[];
@@ -171,6 +178,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   );
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
+  const isAppLoading = isAuthLoading || !hasLoadedStorage;
 
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
@@ -379,6 +387,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   }, [exerciseList, hasLoadedStorage, isAuthLoading, user]);
 
   const startWorkout = useCallback(() => {
+    impactFeedback();
     setIsEditingWorkout(false);
     setCurrentWorkout({
       name: "New Workout",
@@ -389,6 +398,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startEditingWorkout = useCallback((workout: Workout) => {
+    selectionFeedback();
     setIsEditingWorkout(true);
     setCurrentWorkout(cloneWorkout(workout));
   }, []);
@@ -405,6 +415,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setExerciseList((prev) => mergeExerciseList(prev, workout.exercises));
         setIsEditingWorkout(false);
         setCurrentWorkout(null);
+        successFeedback();
         return;
       }
 
@@ -413,8 +424,10 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         await upsertExercises(user.uid, workout.exercises);
         setIsEditingWorkout(false);
         setCurrentWorkout(null);
+        successFeedback();
       } catch (error) {
         console.error(error);
+        warningFeedback();
         showAlert("Save Failed", "Could not save this workout to Firestore.");
       }
     },
@@ -428,6 +441,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setExerciseList((prev) => mergeExerciseList(prev, workout.exercises));
         setIsEditingWorkout(false);
         setCurrentWorkout(null);
+        successFeedback();
         return;
       }
 
@@ -437,8 +451,10 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         setHistory((prev) => replaceWorkout(prev, workout, workout));
         setIsEditingWorkout(false);
         setCurrentWorkout(null);
+        successFeedback();
       } catch (error) {
         console.error(error);
+        warningFeedback();
         showAlert("Save Failed", "Could not save these workout changes.");
       }
     },
@@ -491,6 +507,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         await deleteWorkout(user.uid, workout.id);
       } catch (error) {
         console.error(error);
+        warningFeedback();
         showAlert(
           "Delete Failed",
           "Could not delete this workout from Firestore.",
@@ -537,6 +554,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         currentWorkout,
+        isAppLoading,
         setCurrentWorkout,
         isEditingWorkout,
         startWorkout,
