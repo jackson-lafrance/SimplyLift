@@ -7,6 +7,7 @@ import {
   ReactNode,
   Dispatch,
   SetStateAction,
+  useMemo,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert, { AlertButton } from "../components/customAlert";
@@ -27,6 +28,7 @@ import {
   isSameWorkout,
   replaceWorkout,
 } from "../utils/workoutEditing";
+import { filterExercisesWithWorkoutHistory } from "../utils/exerciseVisibility";
 
 const CURRENT_WORKOUT_KEY = "currentWorkout";
 const EDITING_WORKOUT_KEY = "editingWorkout";
@@ -163,6 +165,10 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<Workout[]>([]);
   const [allowUnilateralExercises, setAllowUnilateralExercises] =
     useState(true);
+  const availableExerciseList = useMemo(
+    () => filterExercisesWithWorkoutHistory(exerciseList, history),
+    [exerciseList, history],
+  );
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
 
@@ -536,7 +542,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
         startWorkout,
         startEditingWorkout,
         cancelWorkoutEdit,
-        exerciseList,
+        exerciseList: availableExerciseList,
         history,
         allowUnilateralExercises,
         setAllowUnilateralExercises,
