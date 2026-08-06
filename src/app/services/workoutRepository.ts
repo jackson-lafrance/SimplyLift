@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
+  updateDoc,
   writeBatch,
 } from "firebase/firestore";
 import { firestore } from "../../lib/firebase";
@@ -153,6 +154,17 @@ export const saveCompletedWorkout = async (uid: string, workout: Workout) => {
   await addDoc(workoutsCollection(uid), {
     ...toFirestoreWorkout(workout),
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const updateCompletedWorkout = async (uid: string, workout: Workout) => {
+  if (!workout.id) {
+    throw new Error("This workout does not have a Firestore id yet.");
+  }
+
+  await updateDoc(doc(workoutsCollection(uid), workout.id), {
+    ...toFirestoreWorkout(workout),
     updatedAt: serverTimestamp(),
   });
 };

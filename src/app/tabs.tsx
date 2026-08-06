@@ -21,7 +21,7 @@ const TAB_TITLES: Record<TabKey, string> = {
 export default function Tabs() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const insets = useSafeAreaInsets();
-  const { setCurrentWorkout } = useAppContext();
+  const { startWorkout } = useAppContext();
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -42,14 +42,7 @@ export default function Tabs() {
       <View style={[styles.shelf, { paddingBottom: insets.bottom + 10 }]}>
         <Pressable
           style={styles.startButton}
-          onPress={() =>
-            setCurrentWorkout({
-              name: "New Workout",
-              time: 0,
-              date: new Date(),
-              exercises: [],
-            })
-          }
+          onPress={startWorkout}
         >
           <Text style={styles.startButtonText}>Start Workout</Text>
         </Pressable>

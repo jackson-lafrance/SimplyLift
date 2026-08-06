@@ -8,6 +8,7 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  TextInput,
 } from "react-native";
 import WorkoutCard from "./components/workoutCard";
 import { useAppContext, Workout } from "./context/appContext";
@@ -74,8 +75,18 @@ function SwipeableWorkoutRow({
 }
 
 export default function Index() {
-  const { history, deleteWorkoutFromHistory, showAlert } = useAppContext();
+  const {
+    history,
+    deleteWorkoutFromHistory,
+    startEditingWorkout,
+    updateWorkoutName,
+    showAlert,
+  } = useAppContext();
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [workoutNameDraft, setWorkoutNameDraft] = useState("");
+  const lastTitlePress = useRef(0);
+  const skipNameBlur = useRef(false);
   
   const slideAnim = useRef(new Animated.Value(height)).current;
 
@@ -91,13 +102,84 @@ export default function Index() {
   }, [selectedWorkout, slideAnim]);
 
   const closeModal = () => {
+    if (isEditingName) commitWorkoutName();
+
     Animated.timing(slideAnim, {
       toValue: height,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
       setSelectedWorkout(null);
+      setIsEditingName(false);
+      setWorkoutNameDraft("");
+      lastTitlePress.current = 0;
     });
+  };
+
+  const commitWorkoutName = () => {
+    if (!selectedWorkout) return;
+
+    const trimmedName = workoutNameDraft.trim();
+    setIsEditingName(false);
+
+    if (!trimmedName) {
+      setWorkoutNameDraft(selectedWorkout.name);
+      return;
+    }
+
+    if (trimmedName === selectedWorkout.name) return;
+
+    const previousWorkout = selectedWorkout;
+    const updatedWorkout = { ...previousWorkout, name: trimmedName };
+    setSelectedWorkout(updatedWorkout);
+    void updateWorkoutName(previousWorkout, trimmedName).then((saved) => {
+      if (!saved) setSelectedWorkout(previousWorkout);
+    });
+  };
+
+  const handleNameSubmit = () => {
+    skipNameBlur.current = true;
+    commitWorkoutName();
+  };
+
+  const handleNameBlur = () => {
+    if (skipNameBlur.current) {
+      skipNameBlur.current = false;
+      return;
+    }
+
+    commitWorkoutName();
+  };
+
+  const handleTitlePress = () => {
+    if (!selectedWorkout || isEditingName) return;
+
+    const now = Date.now();
+    if (now - lastTitlePress.current < 350) {
+      setWorkoutNameDraft(selectedWorkout.name);
+      setIsEditingName(true);
+      lastTitlePress.current = 0;
+      return;
+    }
+
+    lastTitlePress.current = now;
+  };
+
+  const editSelectedWorkout = () => {
+    if (!selectedWorkout) return;
+
+    const trimmedDraft = workoutNameDraft.trim();
+    const workoutToEdit =
+      isEditingName && trimmedDraft
+        ? { ...selectedWorkout, name: trimmedDraft }
+        : selectedWorkout;
+
+    if (isEditingName && trimmedDraft && trimmedDraft !== selectedWorkout.name) {
+      void updateWorkoutName(selectedWorkout, trimmedDraft);
+    }
+
+    startEditingWorkout(workoutToEdit);
+    closeModal();
   };
 
   const requestDeleteWorkout = (workout: Workout) => {
@@ -164,8 +246,30 @@ export default function Index() {
             ]}
           >
             <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle} numberOfLines={2}>{selectedWorkout?.name}</Text>
+              <View style={styles.titleContainer}>
+                {isEditingName ? (
+                  <TextInput
+                    accessibilityLabel="Workout name"
+                    autoFocus
+                    autoCapitalize="characters"
+                    maxLength={18}
+                    returnKeyType="done"
+                    style={styles.modalTitleInput}
+                    value={workoutNameDraft}
+                    onChangeText={setWorkoutNameDraft}
+                    onSubmitEditing={handleNameSubmit}
+                    onBlur={handleNameBlur}
+                  />
+                ) : (
+                  <Pressable
+                    accessibilityHint="Double tap to edit the workout name"
+                    onPress={handleTitlePress}
+                  >
+                    <Text style={styles.modalTitle} numberOfLines={2}>
+                      {selectedWorkout?.name || "Untitled Workout"}
+                    </Text>
+                  </Pressable>
+                )}
                 <Text style={styles.modalSubtitle}>
                   {selectedWorkout?.date.toLocaleDateString(undefined, {
                     weekday: "long",
@@ -238,15 +342,31 @@ export default function Index() {
               ))}
             </ScrollView>
 
-            <Pressable
-              onPress={closeModal}
-              style={({ pressed }: { pressed: boolean }) => [
-                styles.doneButton,
-                pressed && { backgroundColor: "#34C759", borderColor: "#34C759" }
-              ]}
-            >
-              <Text style={styles.doneButtonText}>Done</Text>
-            </Pressable>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={editSelectedWorkout}
+                style={({ pressed }: { pressed: boolean }) => [
+                  styles.editButton,
+                  pressed && {
+                    backgroundColor: "#34C759",
+                    borderColor: "#34C759",
+                  },
+                ]}
+              >
+                <MaterialIcons name="edit" size={18} color="white" />
+                <Text style={styles.doneButtonText}>Edit Workout</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={closeModal}
+                style={({ pressed }: { pressed: boolean }) => [
+                  styles.doneButton,
+                  pressed && { backgroundColor: "#34C759", borderColor: "#34C759" },
+                ]}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </Pressable>
+            </View>
           </Animated.View>
         </View>
       </Modal>
@@ -306,11 +426,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 24,
   },
+  titleContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
   modalTitle: {
     fontSize: 16,
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: -0.5,
+  },
+  modalTitleInput: {
+    fontSize: 16,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    borderBottomWidth: 2,
+    borderBottomColor: "black",
+    paddingVertical: 2,
   },
   modalSubtitle: {
     fontSize: 14,
@@ -391,12 +523,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
+  modalActions: {
+    gap: 10,
+    marginTop: 16,
+  },
+  editButton: {
+    backgroundColor: "#5856D6",
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+    borderWidth: 2,
+    borderColor: "#5856D6",
+  },
   doneButton: {
     backgroundColor: "black",
     paddingVertical: 18,
     borderRadius: 8,
     alignItems: "center",
-    marginTop: 16,
     borderWidth: 2,
     borderColor: "black",
   },
