@@ -17,16 +17,24 @@ import {
   importLegacyLocalData,
   normalizeExerciseName,
   saveCompletedWorkout,
+  updateCompletedWorkout,
   upsertExercises,
   watchExercises,
   watchWorkouts,
 } from "../services/workoutRepository";
+import {
+  cloneWorkout,
+  isSameWorkout,
+  replaceWorkout,
+} from "../utils/workoutEditing";
 
 const CURRENT_WORKOUT_KEY = "currentWorkout";
+const EDITING_WORKOUT_KEY = "editingWorkout";
 const EXERCISES_KEY = "exercises";
 const PAST_WORKOUTS_KEY = "pastWorkouts";
 const ALLOW_UNILATERAL_EXERCISES_KEY = "allowUnilateralExercises";
 const currentWorkoutKey = (uid: string) => `currentWorkout:${uid}`;
+const editingWorkoutKey = (uid: string) => `editingWorkout:${uid}`;
 
 export type SetType = "warmup" | "failure" | "rir";
 
@@ -58,7 +66,13 @@ interface AppContextType {
   history: Workout[];
   allowUnilateralExercises: boolean;
   setAllowUnilateralExercises: Dispatch<SetStateAction<boolean>>;
+  isEditingWorkout: boolean;
+  startWorkout: () => void;
+  startEditingWorkout: (workout: Workout) => void;
+  cancelWorkoutEdit: () => void;
   finishWorkout: (workout: Workout) => Promise<void>;
+  saveEditedWorkout: (workout: Workout) => Promise<void>;
+  updateWorkoutName: (workout: Workout, name: string) => Promise<boolean>;
   deleteWorkoutFromHistory: (workout: Workout) => Promise<void>;
   clearSignedInWorkoutData: () => Promise<void>;
   clearLoggedOutWorkoutData: () => Promise<void>;
@@ -111,14 +125,6 @@ const parseStoredExercises = (rawExercises: string | null): Exercise[] => {
   }
 };
 
-const isSameWorkout = (left: Workout, right: Workout) => {
-  if (left.id && right.id) return left.id === right.id;
-
-  return (
-    left.name === right.name && left.date.getTime() === right.date.getTime()
-  );
-};
-
 const mergeExerciseList = (
   currentExercises: Exercise[],
   workoutExercises: Exercise[],
@@ -152,6 +158,7 @@ const mergeExerciseList = (
 export default function AppProvider({ children }: { children: ReactNode }) {
   const { user, isAuthLoading } = useAuth();
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
+  const [isEditingWorkout, setIsEditingWorkout] = useState(false);
   const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
   const [history, setHistory] = useState<Workout[]>([]);
   const [allowUnilateralExercises, setAllowUnilateralExercises] =
@@ -231,29 +238,40 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       setHasLoadedStorage(false);
 
       if (!user) {
-        const [[, storedWorkout], [, storedExercises], [, storedWorkouts]] =
-          await AsyncStorage.multiGet([
-            CURRENT_WORKOUT_KEY,
-            EXERCISES_KEY,
-            PAST_WORKOUTS_KEY,
-          ]);
+        const [
+          [, storedWorkout],
+          [, storedEditingWorkout],
+          [, storedExercises],
+          [, storedWorkouts],
+        ] = await AsyncStorage.multiGet([
+          CURRENT_WORKOUT_KEY,
+          EDITING_WORKOUT_KEY,
+          EXERCISES_KEY,
+          PAST_WORKOUTS_KEY,
+        ]);
 
         if (!isMounted) return;
 
-        setCurrentWorkout(parseStoredWorkout(storedWorkout));
+        const parsedWorkout = parseStoredWorkout(storedWorkout);
+        setCurrentWorkout(parsedWorkout);
+        setIsEditingWorkout(storedEditingWorkout === "true" && !!parsedWorkout);
         setExerciseList(parseStoredExercises(storedExercises));
         setHistory(parseStoredWorkouts(storedWorkouts));
         setHasLoadedStorage(true);
         return;
       }
 
-      const storedWorkout = await AsyncStorage.getItem(
-        currentWorkoutKey(user.uid),
-      );
+      const [[, storedWorkout], [, storedEditingWorkout]] =
+        await AsyncStorage.multiGet([
+          currentWorkoutKey(user.uid),
+          editingWorkoutKey(user.uid),
+        ]);
 
       if (!isMounted) return;
 
-      setCurrentWorkout(parseStoredWorkout(storedWorkout));
+      const parsedWorkout = parseStoredWorkout(storedWorkout);
+      setCurrentWorkout(parsedWorkout);
+      setIsEditingWorkout(storedEditingWorkout === "true" && !!parsedWorkout);
       setExerciseList([]);
       setHistory([]);
       setHasLoadedStorage(true);
@@ -318,17 +336,29 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       const storageKey = user
         ? currentWorkoutKey(user.uid)
         : CURRENT_WORKOUT_KEY;
+      const editingStorageKey = user
+        ? editingWorkoutKey(user.uid)
+        : EDITING_WORKOUT_KEY;
 
       if (!currentWorkout) {
-        await AsyncStorage.removeItem(storageKey);
+        await AsyncStorage.multiRemove([storageKey, editingStorageKey]);
         return;
       }
 
-      await AsyncStorage.setItem(storageKey, JSON.stringify(currentWorkout));
+      await AsyncStorage.multiSet([
+        [storageKey, JSON.stringify(currentWorkout)],
+        [editingStorageKey, JSON.stringify(isEditingWorkout)],
+      ]);
     };
 
     void persistCurrentWorkout();
-  }, [currentWorkout, hasLoadedStorage, isAuthLoading, user]);
+  }, [
+    currentWorkout,
+    hasLoadedStorage,
+    isAuthLoading,
+    isEditingWorkout,
+    user,
+  ]);
 
   useEffect(() => {
     if (!hasLoadedStorage || isAuthLoading || user) return;
@@ -342,11 +372,32 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     void AsyncStorage.setItem(EXERCISES_KEY, JSON.stringify(exerciseList));
   }, [exerciseList, hasLoadedStorage, isAuthLoading, user]);
 
+  const startWorkout = useCallback(() => {
+    setIsEditingWorkout(false);
+    setCurrentWorkout({
+      name: "New Workout",
+      time: 0,
+      date: new Date(),
+      exercises: [],
+    });
+  }, []);
+
+  const startEditingWorkout = useCallback((workout: Workout) => {
+    setIsEditingWorkout(true);
+    setCurrentWorkout(cloneWorkout(workout));
+  }, []);
+
+  const cancelWorkoutEdit = useCallback(() => {
+    setIsEditingWorkout(false);
+    setCurrentWorkout(null);
+  }, []);
+
   const finishWorkout = useCallback(
     async (workout: Workout) => {
       if (!user) {
         setHistory((prev) => [...prev, workout]);
         setExerciseList((prev) => mergeExerciseList(prev, workout.exercises));
+        setIsEditingWorkout(false);
         setCurrentWorkout(null);
         return;
       }
@@ -354,10 +405,60 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       try {
         await saveCompletedWorkout(user.uid, workout);
         await upsertExercises(user.uid, workout.exercises);
+        setIsEditingWorkout(false);
         setCurrentWorkout(null);
       } catch (error) {
         console.error(error);
         showAlert("Save Failed", "Could not save this workout to Firestore.");
+      }
+    },
+    [showAlert, user],
+  );
+
+  const saveEditedWorkout = useCallback(
+    async (workout: Workout) => {
+      if (!user) {
+        setHistory((prev) => replaceWorkout(prev, workout, workout));
+        setExerciseList((prev) => mergeExerciseList(prev, workout.exercises));
+        setIsEditingWorkout(false);
+        setCurrentWorkout(null);
+        return;
+      }
+
+      try {
+        await updateCompletedWorkout(user.uid, workout);
+        await upsertExercises(user.uid, workout.exercises);
+        setHistory((prev) => replaceWorkout(prev, workout, workout));
+        setIsEditingWorkout(false);
+        setCurrentWorkout(null);
+      } catch (error) {
+        console.error(error);
+        showAlert("Save Failed", "Could not save these workout changes.");
+      }
+    },
+    [showAlert, user],
+  );
+
+  const updateWorkoutName = useCallback(
+    async (workout: Workout, name: string) => {
+      const trimmedName = name.trim();
+      if (!trimmedName) return false;
+
+      const updatedWorkout = { ...workout, name: trimmedName };
+
+      if (!user) {
+        setHistory((prev) => replaceWorkout(prev, workout, updatedWorkout));
+        return true;
+      }
+
+      try {
+        await updateCompletedWorkout(user.uid, updatedWorkout);
+        setHistory((prev) => replaceWorkout(prev, workout, updatedWorkout));
+        return true;
+      } catch (error) {
+        console.error(error);
+        showAlert("Save Failed", "Could not update this workout's name.");
+        return false;
       }
     },
     [showAlert, user],
@@ -398,7 +499,11 @@ export default function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       await clearFirestoreWorkoutData(user.uid);
-      await AsyncStorage.removeItem(currentWorkoutKey(user.uid));
+      await AsyncStorage.multiRemove([
+        currentWorkoutKey(user.uid),
+        editingWorkoutKey(user.uid),
+      ]);
+      setIsEditingWorkout(false);
       setCurrentWorkout(null);
       setHistory([]);
       setExerciseList([]);
@@ -414,6 +519,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.multiRemove([PAST_WORKOUTS_KEY, EXERCISES_KEY]);
       setHistory([]);
       setExerciseList([]);
+      setIsEditingWorkout(false);
     } catch (error) {
       console.error(error);
       showAlert("Clear Failed", "Could not clear local workout data.");
@@ -426,11 +532,17 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       value={{
         currentWorkout,
         setCurrentWorkout,
+        isEditingWorkout,
+        startWorkout,
+        startEditingWorkout,
+        cancelWorkoutEdit,
         exerciseList,
         history,
         allowUnilateralExercises,
         setAllowUnilateralExercises,
         finishWorkout,
+        saveEditedWorkout,
+        updateWorkoutName,
         deleteWorkoutFromHistory,
         clearSignedInWorkoutData,
         clearLoggedOutWorkoutData,

@@ -14,10 +14,21 @@ import { useAppContext } from "../context/appContext";
 import { useEffect, useState } from "react";
 import ExerciseCard from "./exerciseCard";
 import NewExercise from "./newExercise";
+import {
+  formatWorkoutDuration,
+  parseWorkoutDuration,
+} from "../utils/workoutEditing";
 
 export default function ActiveWorkout() {
-  const { currentWorkout, setCurrentWorkout, finishWorkout, showAlert } =
-    useAppContext();
+  const {
+    currentWorkout,
+    setCurrentWorkout,
+    isEditingWorkout,
+    finishWorkout,
+    saveEditedWorkout,
+    cancelWorkoutEdit,
+    showAlert,
+  } = useAppContext();
   const insets = useSafeAreaInsets();
 
   const [visible, setVisible] = useState(false);
@@ -26,17 +37,40 @@ export default function ActiveWorkout() {
     (!currentWorkout ? new Date().getTime() : currentWorkout.date.getTime()),
   );
 
-  const [oldTitle, setOldTitle] = useState("")
+  const [oldTitle, setOldTitle] = useState("");
+  const [durationText, setDurationText] = useState(
+    formatWorkoutDuration(currentWorkout?.time ?? 0),
+  );
 
   useEffect(() => {
-    if (currentWorkout) {
-      const interval = setInterval(() => {
-        setTime(new Date().getTime() - currentWorkout.date.getTime());
-      }, 1000);
+    if (!currentWorkout || isEditingWorkout) return;
 
-      return () => clearInterval(interval);
-    }
-  }, [currentWorkout]);
+    const interval = setInterval(() => {
+      setTime(new Date().getTime() - currentWorkout.date.getTime());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [currentWorkout, isEditingWorkout]);
+
+  const handleDurationChange = (value: string) => {
+    setDurationText(value);
+
+    const duration = parseWorkoutDuration(value);
+    if (duration === null) return;
+
+    setCurrentWorkout((prev) => (prev ? { ...prev, time: duration } : prev));
+  };
+
+  const getEditedWorkout = () => {
+    if (!currentWorkout) return null;
+
+    const duration = parseWorkoutDuration(durationText);
+    const workout =
+      duration === null ? currentWorkout : { ...currentWorkout, time: duration };
+
+    setDurationText(formatWorkoutDuration(workout.time));
+    return workout;
+  };
 
   if (!currentWorkout) return null;
 
@@ -49,30 +83,52 @@ export default function ActiveWorkout() {
 
       <View style={[styles.topShelf, { paddingTop: insets.top + 12 }]}>
         <View style={styles.topShelfContent}>
-          <TextInput
-            maxLength={18}
-            style={styles.title}
-            autoCapitalize="characters"
-            placeholder={oldTitle}
-            onChangeText={(text) =>
-              setCurrentWorkout((prev) => (prev ? { ...prev, name: text } : prev))
-            }
-            onFocus={(text) => {
-              setOldTitle((currentWorkout.name))
-              setCurrentWorkout((prev) => (prev ? { ...prev, name: ""} : prev))
-            }}
-            onBlur={(text) => {
-              setCurrentWorkout((prev) => (prev && prev.name === "" ? { ...prev, name: oldTitle } : prev))
-            }}
-            value={currentWorkout.name}
-          />
+          {isEditingWorkout ? (
+            <Text style={styles.title} numberOfLines={2}>
+              {currentWorkout.name || "Untitled Workout"}
+            </Text>
+          ) : (
+            <TextInput
+              maxLength={18}
+              style={styles.title}
+              autoCapitalize="characters"
+              placeholder={oldTitle}
+              onChangeText={(text) =>
+                setCurrentWorkout((prev) =>
+                  prev ? { ...prev, name: text } : prev,
+                )
+              }
+              onFocus={() => {
+                setOldTitle(currentWorkout.name);
+                setCurrentWorkout((prev) =>
+                  prev ? { ...prev, name: "" } : prev,
+                );
+              }}
+              onBlur={() => {
+                setCurrentWorkout((prev) =>
+                  prev && prev.name === "" ? { ...prev, name: oldTitle } : prev,
+                );
+              }}
+              value={currentWorkout.name}
+            />
+          )}
           <View style={styles.timerContainer}>
             <MaterialIcons name="timer" size={16} color="black" />
-            <Text style={styles.timer}>
-              {String(Math.floor(time / 3600000)).padStart(2, "0")}:
-              {String(Math.floor((time % 3600000) / 60000)).padStart(2, "0")}:
-              {String(Math.floor((time % 60000) / 1000)).padStart(2, "0")}
-            </Text>
+            {isEditingWorkout ? (
+              <TextInput
+                accessibilityLabel="Workout duration"
+                style={[styles.timer, styles.durationInput]}
+                keyboardType="numbers-and-punctuation"
+                maxLength={9}
+                value={durationText}
+                onChangeText={handleDurationChange}
+                onSubmitEditing={getEditedWorkout}
+                onBlur={getEditedWorkout}
+                placeholder="00:00:00"
+              />
+            ) : (
+              <Text style={styles.timer}>{formatWorkoutDuration(time)}</Text>
+            )}
           </View>
         </View>
       </View>
@@ -94,6 +150,21 @@ export default function ActiveWorkout() {
         <View style={styles.bottomShelfContent}>
           <Pressable
             onPress={() => {
+              if (isEditingWorkout) {
+                showAlert("Cancel Editing", "Discard these workout changes?", [
+                  {
+                    text: "Keep Editing",
+                    style: "default",
+                  },
+                  {
+                    text: "Discard",
+                    onPress: cancelWorkoutEdit,
+                    style: "cancel",
+                  },
+                ]);
+                return;
+              }
+
               showAlert("Cancel Workout", "Are you sure you want to quit?", [
                 {
                   text: "Keep Going",
@@ -115,7 +186,9 @@ export default function ActiveWorkout() {
                   size={24}
                   color={pressed ? "#FF3B30" : "black"}
                 />
-                <Text style={[styles.shelfButtonLabel, pressed && { color: "#FF3B30" }]}>Quit</Text>
+                <Text style={[styles.shelfButtonLabel, pressed && { color: "#FF3B30" }]}>
+                  {isEditingWorkout ? "Cancel" : "Quit"}
+                </Text>
               </>
             )}
           </Pressable>
@@ -129,6 +202,12 @@ export default function ActiveWorkout() {
 
           <Pressable
             onPress={() => {
+              if (isEditingWorkout) {
+                const editedWorkout = getEditedWorkout();
+                if (editedWorkout) void saveEditedWorkout(editedWorkout);
+                return;
+              }
+
               showAlert("Submit Workout", "Are you finished your workout?", [
                 {
                   text: "Keep Going",
@@ -155,7 +234,9 @@ export default function ActiveWorkout() {
                   size={24}
                   color={pressed ? "#34C759" : "black"}
                 />
-                <Text style={[styles.shelfButtonLabel, pressed && { color: "#34C759" }]}>Finish</Text>
+                <Text style={[styles.shelfButtonLabel, pressed && { color: "#34C759" }]}>
+                  {isEditingWorkout ? "Save" : "Finish"}
+                </Text>
               </>
             )}
           </Pressable>
@@ -186,6 +267,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "900",
     flex: 1,
+  },
+  durationInput: {
+    minWidth: 86,
+    padding: 0,
+    textAlign: "right",
   },
   timerContainer: {
     flexDirection: "row",
