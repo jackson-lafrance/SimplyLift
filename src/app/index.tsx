@@ -1,4 +1,5 @@
 import {
+  ActivityIndicator,
   Text,
   StyleSheet,
   FlatList,
@@ -12,7 +13,7 @@ import {
 } from "react-native";
 import WorkoutCard from "./components/workoutCard";
 import { useAppContext, Workout } from "./context/appContext";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import type { SwipeableMethods } from "react-native-gesture-handler/lib/typescript/components/ReanimatedSwipeable/ReanimatedSwipeableProps";
@@ -21,6 +22,10 @@ import {
   getSetDisplayRows,
   getSetNumberColor,
 } from "./utils/setDisplay";
+import {
+  selectionFeedback,
+  warningFeedback,
+} from "./utils/feedback";
 
 const { height } = Dimensions.get("window");
 
@@ -67,7 +72,13 @@ function SwipeableWorkoutRow({
         </View>
       )}
     >
-      <Pressable onPress={onPress}>
+      <Pressable
+        onPress={() => {
+          selectionFeedback();
+          onPress();
+        }}
+        style={({ pressed }) => [pressed && styles.workoutCardPressed]}
+      >
         <WorkoutCard workout={workout} />
       </Pressable>
     </Swipeable>
@@ -85,6 +96,7 @@ export default function Index() {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [workoutNameDraft, setWorkoutNameDraft] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
   const lastTitlePress = useRef(0);
   const skipNameBlur = useRef(false);
   
@@ -95,8 +107,8 @@ export default function Index() {
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 60,
-        friction: 12,
+        tension: 100,
+        friction: 14,
       }).start();
     }
   }, [selectedWorkout, slideAnim]);
@@ -106,12 +118,13 @@ export default function Index() {
 
     Animated.timing(slideAnim, {
       toValue: height,
-      duration: 200,
+      duration: 160,
       useNativeDriver: true,
     }).start(() => {
       setSelectedWorkout(null);
       setIsEditingName(false);
       setWorkoutNameDraft("");
+      setIsSavingName(false);
       lastTitlePress.current = 0;
     });
   };
@@ -132,9 +145,12 @@ export default function Index() {
     const previousWorkout = selectedWorkout;
     const updatedWorkout = { ...previousWorkout, name: trimmedName };
     setSelectedWorkout(updatedWorkout);
-    void updateWorkoutName(previousWorkout, trimmedName).then((saved) => {
-      if (!saved) setSelectedWorkout(previousWorkout);
-    });
+    setIsSavingName(true);
+    void updateWorkoutName(previousWorkout, trimmedName)
+      .then((saved) => {
+        if (!saved) setSelectedWorkout(previousWorkout);
+      })
+      .finally(() => setIsSavingName(false));
   };
 
   const handleNameSubmit = () => {
@@ -156,6 +172,7 @@ export default function Index() {
 
     const now = Date.now();
     if (now - lastTitlePress.current < 350) {
+      selectionFeedback();
       setWorkoutNameDraft(selectedWorkout.name);
       setIsEditingName(true);
       lastTitlePress.current = 0;
@@ -183,6 +200,7 @@ export default function Index() {
   };
 
   const requestDeleteWorkout = (workout: Workout) => {
+    warningFeedback();
     showAlert(
       "Delete Workout",
       "Are you sure you want to delete this workout? This action cannot be undone.",
@@ -202,6 +220,11 @@ export default function Index() {
     );
   };
 
+  const sortedHistory = useMemo(
+    () => [...history].sort((a, b) => b.date.getTime() - a.date.getTime()),
+    [history],
+  );
+
   const formatTime = (ms: number) => {
     const hours = Math.floor(ms / 3600000);
     const mins = Math.floor((ms % 3600000) / 60000);
@@ -215,7 +238,7 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={[...history].sort((a, b) => b.date.getTime() - a.date.getTime())}
+        data={sortedHistory}
         renderItem={({ item }) => (
           <SwipeableWorkoutRow
             workout={item}
@@ -225,6 +248,9 @@ export default function Index() {
         )}
         keyExtractor={(item, index) => item.id ?? `${item.name}-${index}`}
         contentContainerStyle={styles.listContent}
+        removeClippedSubviews
+        initialNumToRender={8}
+        windowSize={7}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No workouts logged yet.</Text>
@@ -235,7 +261,7 @@ export default function Index() {
       <Modal
         visible={!!selectedWorkout}
         transparent={true}
-        animationType="fade"
+        animationType="none"
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
@@ -270,16 +296,26 @@ export default function Index() {
                     </Text>
                   </Pressable>
                 )}
-                <Text style={styles.modalSubtitle}>
-                  {selectedWorkout?.date.toLocaleDateString(undefined, {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Text>
+                <View style={styles.modalSubtitleRow}>
+                  <Text style={styles.modalSubtitle}>
+                    {selectedWorkout?.date.toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </Text>
+                  {isSavingName && <ActivityIndicator size="small" color="#8E8E93" />}
+                </View>
               </View>
               <View style={{ flexDirection: "row"}}>
-                <Pressable onPress={closeModal}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => {
+                    selectionFeedback();
+                    closeModal();
+                  }}
+                  style={({ pressed }) => [pressed && styles.closeButtonPressed]}
+                >
                   <MaterialIcons name="close" size={28} color="black" />
                 </Pressable>
               </View>
@@ -384,6 +420,9 @@ const styles = StyleSheet.create({
     paddingBottom: 180,
     paddingTop: 16,
   },
+  workoutCardPressed: {
+    opacity: 0.72,
+  },
   swipeDeleteActionContainer: {
     width: 96,
     marginBottom: 12,
@@ -444,11 +483,19 @@ const styles = StyleSheet.create({
     borderBottomColor: "black",
     paddingVertical: 2,
   },
+  modalSubtitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   modalSubtitle: {
     fontSize: 14,
     color: "#8E8E93",
     fontWeight: "700",
     textTransform: "uppercase",
+  },
+  closeButtonPressed: {
+    opacity: 0.5,
   },
   statsBar: {
     flexDirection: "row",

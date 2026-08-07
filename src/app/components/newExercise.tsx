@@ -12,6 +12,11 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/appContext";
 import type { Exercise, Set } from "../context/appContext";
 import { useState, useMemo, useRef, useEffect } from "react";
+import {
+  impactFeedback,
+  selectionFeedback,
+  warningFeedback,
+} from "../utils/feedback";
 
 const { height } = Dimensions.get("window");
 
@@ -64,15 +69,15 @@ export default function NewExercise({ close }: NewExerciseParams) {
     Animated.spring(slideAnim, {
       toValue: 0,
       useNativeDriver: true,
-      tension: 60,
-      friction: 12,
+      tension: 100,
+      friction: 14,
     }).start();
   }, [slideAnim]);
 
   const handleClose = () => {
     Animated.timing(slideAnim, {
       toValue: height,
-      duration: 200,
+      duration: 160,
       useNativeDriver: true,
     }).start(() => {
       close();
@@ -168,7 +173,7 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
   return (
     <Modal
-      animationType="fade"
+      animationType="none"
       transparent={true}
       visible={true}
       onRequestClose={handleClose}
@@ -205,8 +210,14 @@ export default function NewExercise({ close }: NewExerciseParams) {
               {suggestions.map((item, index) => (
                 <Pressable
                   key={index}
-                  style={styles.suggestionItem}
-                  onPress={() => handleSelectExercise(item.name)}
+                  style={({ pressed }) => [
+                    styles.suggestionItem,
+                    pressed && styles.suggestionItemPressed,
+                  ]}
+                  onPress={() => {
+                    selectionFeedback();
+                    handleSelectExercise(item.name);
+                  }}
                 >
                   <Text style={styles.suggestionText}>{item.name}</Text>
                 </Pressable>
@@ -220,7 +231,10 @@ export default function NewExercise({ close }: NewExerciseParams) {
                 styles.unilateralOption,
                 isUnilateral && styles.unilateralOptionSelected,
               ]}
-              onPress={() => handleUnilateralChange(!isUnilateral)}
+              onPress={() => {
+                selectionFeedback();
+                handleUnilateralChange(!isUnilateral);
+              }}
             >
               <View
                 style={[
@@ -244,7 +258,11 @@ export default function NewExercise({ close }: NewExerciseParams) {
 
           <View style={styles.buttonContainer}>
             <Pressable
-              style={[styles.button, styles.cancelButton]}
+              style={({ pressed }) => [
+                styles.button,
+                styles.cancelButton,
+                pressed && styles.cancelButtonPressed,
+              ]}
               onPress={handleClose}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -259,7 +277,13 @@ export default function NewExercise({ close }: NewExerciseParams) {
               onPress={() => {
                 const trimmedExerciseName = exerciseName.trim();
 
-                if (!trimmedExerciseName) return;
+                if (!trimmedExerciseName) {
+                  warningFeedback();
+                  setErrorMessage("Enter an exercise name first.");
+                  return;
+                }
+
+                impactFeedback();
 
                 const shouldSaveAsUnilateral = allowUnilateralExercises
                   ? isUnilateral
@@ -354,6 +378,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F2F2F7",
   },
+  suggestionItemPressed: {
+    backgroundColor: "#F2F2F7",
+  },
   suggestionText: {
     fontSize: 14,
     color: "black",
@@ -422,6 +449,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: "white",
+  },
+  cancelButtonPressed: {
+    backgroundColor: "#F2F2F7",
   },
   cancelButtonText: {
     color: "black",

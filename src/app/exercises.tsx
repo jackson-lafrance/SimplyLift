@@ -16,6 +16,7 @@ import {
   getSetDisplayRows,
   getSetNumberColor,
 } from "./utils/setDisplay";
+import { selectionFeedback } from "./utils/feedback";
 
 const { height } = Dimensions.get("window");
 
@@ -34,8 +35,8 @@ export default function Exercises() {
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 60,
-        friction: 12,
+        tension: 100,
+        friction: 14,
       }).start();
     }
   }, [selectedExercise, slideAnim]);
@@ -43,7 +44,7 @@ export default function Exercises() {
   const closeModal = () => {
     Animated.timing(slideAnim, {
       toValue: height,
-      duration: 200,
+      duration: 160,
       useNativeDriver: true,
     }).start(() => {
       setSelectedExercise(null);
@@ -90,7 +91,10 @@ export default function Exercises() {
               styles.listItem,
               pressed && styles.listItemPressed,
             ]}
-            onPress={() => setSelectedExercise(item)}
+            onPress={() => {
+              selectionFeedback();
+              setSelectedExercise(item);
+            }}
           >
             <View style={styles.listItemTextContainer}>
               <Text style={styles.exerciseName} numberOfLines={2}>{item.name}</Text>
@@ -107,7 +111,7 @@ export default function Exercises() {
       <Modal
         visible={!!selectedExercise}
         transparent={true}
-        animationType="fade"
+        animationType="none"
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
@@ -120,8 +124,14 @@ export default function Exercises() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{selectedExercise?.name}</Text>
               <Pressable
-                onPress={closeModal}
-                style={styles.closeIconButton}
+                onPress={() => {
+                  selectionFeedback();
+                  closeModal();
+                }}
+                style={({ pressed }) => [
+                  styles.closeIconButton,
+                  pressed && styles.closeIconButtonPressed,
+                ]}
               >
                 <MaterialIcons name="close" size={24} color="black" />
               </Pressable>
@@ -131,6 +141,7 @@ export default function Exercises() {
               data={exerciseHistory}
               keyExtractor={(_, index) => index.toString()}
               contentContainerStyle={styles.historyList}
+              removeClippedSubviews
               renderItem={({ item }) => (
                 <View style={styles.historyCard}>
                   <View style={styles.historyHeader}>
@@ -284,6 +295,9 @@ const styles = StyleSheet.create({
   },
   closeIconButton: {
     padding: 4,
+  },
+  closeIconButtonPressed: {
+    opacity: 0.5,
   },
   historyList: {
     paddingBottom: 20,

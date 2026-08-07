@@ -1,5 +1,6 @@
 import { Text, View, StyleSheet, Switch } from "react-native";
 import { useAppContext } from "./context/appContext";
+import { selectionFeedback } from "./utils/feedback";
 
 export default function Settings() {
   const { allowUnilateralExercises, setAllowUnilateralExercises } =
@@ -14,7 +15,10 @@ export default function Settings() {
           </View>
           <Switch
             value={allowUnilateralExercises}
-            onValueChange={setAllowUnilateralExercises}
+            onValueChange={(value) => {
+              selectionFeedback();
+              setAllowUnilateralExercises(value);
+            }}
             trackColor={{ false: "#D1D1D6", true: "#34C759" }}
             thumbColor="white"
             ios_backgroundColor="#D1D1D6"

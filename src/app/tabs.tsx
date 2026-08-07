@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAppContext } from "./context/appContext";
 import ProfileHeader from "./components/profileHeader";
+import { selectionFeedback } from "./utils/feedback";
 
 // Screens
 import Index from "./index";
@@ -41,16 +42,22 @@ export default function Tabs() {
 
       <View style={[styles.shelf, { paddingBottom: insets.bottom + 10 }]}>
         <Pressable
-          style={styles.startButton}
+          style={({ pressed }) => [
+            styles.startButton,
+            pressed && styles.startButtonPressed,
+          ]}
           onPress={startWorkout}
         >
           <Text style={styles.startButtonText}>Start Workout</Text>
         </Pressable>
 
         <View style={styles.tabBar}>
-          <Pressable 
-            style={styles.tabItem} 
-            onPress={() => setActiveTab("home")}
+          <Pressable
+            style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
+            onPress={() => {
+              selectionFeedback();
+              setActiveTab("home");
+            }}
           >
             <MaterialIcons 
               name={activeTab === "home" ? "home" : "home"} 
@@ -60,9 +67,12 @@ export default function Tabs() {
             <Text style={[styles.tabLabel, { color: activeTab === "home" ? "black" : "#8E8E93" }]}>Home</Text>
           </Pressable>
 
-          <Pressable 
-            style={styles.tabItem} 
-            onPress={() => setActiveTab("exercises")}
+          <Pressable
+            style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
+            onPress={() => {
+              selectionFeedback();
+              setActiveTab("exercises");
+            }}
           >
             <MaterialIcons 
               name="fitness-center" 
@@ -72,9 +82,12 @@ export default function Tabs() {
             <Text style={[styles.tabLabel, { color: activeTab === "exercises" ? "black" : "#8E8E93" }]}>Exercises</Text>
           </Pressable>
 
-          <Pressable 
-            style={styles.tabItem} 
-            onPress={() => setActiveTab("settings")}
+          <Pressable
+            style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
+            onPress={() => {
+              selectionFeedback();
+              setActiveTab("settings");
+            }}
           >
             <MaterialIcons 
               name="settings" 
@@ -113,6 +126,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "black",
   },
+  startButtonPressed: {
+    backgroundColor: "#34C759",
+    borderColor: "#34C759",
+  },
   startButtonText: {
     color: "white",
     fontSize: 16,
@@ -130,6 +147,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minWidth: 80,
+  },
+  tabItemPressed: {
+    backgroundColor: "#F2F2F7",
+    borderRadius: 8,
   },
   tabLabel: {
     fontSize: 10,
