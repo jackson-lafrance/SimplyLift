@@ -13,6 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import {
   formatSetDisplayLabel,
   getSetNumberColor,
+  getSetTypeDetailLabel,
   RIR_COLORS,
   RIR_OPTIONS,
   SET_TYPE_COLORS,
@@ -37,6 +38,8 @@ export interface setProps {
   displaySetNumber: number;
   sideLabel?: SetSideLabel;
   exerciseName: string;
+  displayLabel?: string;
+  showRemoveButton?: boolean;
 }
 
 export default function SetCard({
@@ -46,6 +49,8 @@ export default function SetCard({
   displaySetNumber,
   sideLabel,
   exerciseName,
+  displayLabel,
+  showRemoveButton = true,
 }: setProps) {
   const {
     setCurrentWorkout,
@@ -207,7 +212,9 @@ export default function SetCard({
     });
   };
 
-  const setLabel = formatSetDisplayLabel(displaySetNumber, sideLabel);
+  const setLabel =
+    displayLabel ?? formatSetDisplayLabel(displaySetNumber, sideLabel);
+  const setTypeDetailLabel = getSetTypeDetailLabel(set);
 
   return (
     <View style={styles.container}>
@@ -226,9 +233,14 @@ export default function SetCard({
             {setLabel}
           </Text>
 
-          {set.type === "rir" && typeof set.rir === "number" && (
-            <Text style={[styles.rirLabel, { color: getSetNumberColor(set) }]}>
-              {set.rir}
+          {setTypeDetailLabel && (
+            <Text
+              style={[
+                styles.setTypeDetailLabel,
+                { color: getSetNumberColor(set) },
+              ]}
+            >
+              {setTypeDetailLabel}
             </Text>
           )}
         </Pressable>
@@ -259,21 +271,25 @@ export default function SetCard({
         />
       </View>
 
-      <Pressable
-        style={styles.removeButton}
-        onPress={() => {
-          warningFeedback();
-          handleRemoveSetGroup();
-        }}
-      >
-        {({ pressed }: { pressed: boolean }) => (
-          <MaterialIcons
-            name="close"
-            size={16}
-            color={pressed ? "#FF3B30" : "#8E8E93"}
-          />
-        )}
-      </Pressable>
+      {showRemoveButton ? (
+        <Pressable
+          style={styles.removeButton}
+          onPress={() => {
+            warningFeedback();
+            handleRemoveSetGroup();
+          }}
+        >
+          {({ pressed }: { pressed: boolean }) => (
+            <MaterialIcons
+              name="close"
+              size={16}
+              color={pressed ? "#FF3B30" : "#8E8E93"}
+            />
+          )}
+        </Pressable>
+      ) : (
+        <View style={styles.removeButton} />
+      )}
       <Modal
         transparent
         visible={isTypePickerVisible}
@@ -329,6 +345,20 @@ export default function SetCard({
               </Text>
             </Pressable>
 
+            <Pressable
+              style={styles.typeOption}
+              onPress={() => handleTypeUpdate("dropset")}
+            >
+              <Text
+                style={[
+                  styles.typeOptionText,
+                  { color: SET_TYPE_COLORS.dropset },
+                ]}
+              >
+                Drop Set
+              </Text>
+            </Pressable>
+
             <Text style={styles.rirPickerTitle}>RIR</Text>
 
             <View style={styles.rirOptions}>
@@ -381,7 +411,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 16,
   },
-  rirLabel: {
+  setTypeDetailLabel: {
     marginTop: 2,
     width: "100%",
     fontSize: 8,

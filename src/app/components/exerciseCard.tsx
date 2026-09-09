@@ -10,10 +10,14 @@ import {
 } from "react-native";
 import { useAppContext } from "../context/appContext";
 import type { Exercise } from "../context/appContext";
-import { getSetDisplayRows } from "../utils/setDisplay";
+import {
+  getSetDisplayGroups,
+  type SetDisplayGroup,
+} from "../utils/setDisplay";
 import {
   addSetGroupToExercise,
   getExerciseTrackingMode,
+  removeSetGroupFromExercise,
 } from "../utils/exerciseSets";
 import SetCard from "./setCard";
 import { memo, useEffect, useState } from "react";
@@ -58,6 +62,77 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
     });
   };
 
+  const trackingMode = getExerciseTrackingMode(exercise);
+
+  const handleRemoveSetGroup = (setGroupId: string) => {
+    setCurrentWorkout((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        exercises: prev.exercises.map((ex) => {
+          if (ex.name !== exercise.name) return ex;
+
+          return removeSetGroupFromExercise(ex, setGroupId);
+        }),
+      };
+    });
+  };
+
+  const renderSetGroup = (displayGroup: SetDisplayGroup) => {
+    if (displayGroup.groupType === "standard") {
+      const row = displayGroup.rows[0];
+
+      return (
+        <SetCard
+          key={row.rowId}
+          set={row.set}
+          groupId={row.groupId}
+          setSlot={row.setSlot}
+          displaySetNumber={row.displaySetNumber}
+          sideLabel={row.sideLabel}
+          exerciseName={exercise.name}
+        />
+      );
+    }
+
+    return (
+      <View key={displayGroup.groupId} style={styles.leftRightSetGroup}>
+        <View style={styles.leftRightSetHeader}>
+          <Text style={styles.leftRightSetTitle}>
+            Set {displayGroup.displaySetNumber}
+          </Text>
+          <Pressable
+            style={styles.removeSetGroupButton}
+            onPress={() => handleRemoveSetGroup(displayGroup.groupId)}
+          >
+            {({ pressed }: { pressed: boolean }) => (
+              <MaterialIcons
+                name="close"
+                size={16}
+                color={pressed ? "#FF3B30" : "#8E8E93"}
+              />
+            )}
+          </Pressable>
+        </View>
+
+        {displayGroup.rows.map((row) => (
+          <SetCard
+            key={row.rowId}
+            set={row.set}
+            groupId={row.groupId}
+            setSlot={row.setSlot}
+            displaySetNumber={row.displaySetNumber}
+            sideLabel={row.sideLabel}
+            exerciseName={exercise.name}
+            displayLabel={row.sideLabel}
+            showRemoveButton={false}
+          />
+        ))}
+      </View>
+    );
+  };
+
   const handleRemoveExercise = () => {
     warningFeedback();
     showAlert(
@@ -97,7 +172,7 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
         >
           <View style={styles.nameContainer}>
             <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
-            {getExerciseTrackingMode(exercise) === "leftRight" && (
+            {trackingMode === "leftRight" && (
               <Text style={styles.unilateralBadge}>Left / Right</Text>
             )}
           </View>
@@ -128,25 +203,15 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
       {!dropdowned && (
         <View style={styles.setsContainer}>
           <View style={styles.setsHeader}>
-            <Text style={styles.setsHeaderLabel}>SET</Text>
+            <Text style={styles.setsHeaderLabel}>
+              {trackingMode === "leftRight" ? "SIDE" : "SET"}
+            </Text>
             <Text style={styles.setsHeaderLabel}>LBS</Text>
             <Text style={styles.setsHeaderLabel}>REPS</Text>
             <View style={{ width: 32 }} />
           </View>
 
-          {getSetDisplayRows(exercise).map(
-            ({ rowId, set, groupId, setSlot, displaySetNumber, sideLabel }) => (
-              <SetCard
-                key={rowId}
-                set={set}
-                groupId={groupId}
-                setSlot={setSlot}
-                displaySetNumber={displaySetNumber}
-                sideLabel={sideLabel}
-                exerciseName={exercise.name}
-              />
-            ),
-          )}
+          {getSetDisplayGroups(exercise).map(renderSetGroup)}
 
           <Pressable
             style={({ pressed }) => [
@@ -156,9 +221,7 @@ function ExerciseCard({ exercise }: ExerciseCardProps) {
             onPress={handleAddSet}
           >
             <MaterialIcons name="add" size={18} color="black" />
-            <Text style={styles.addSetText}>
-              ADD SET
-            </Text>
+            <Text style={styles.addSetText}>ADD SET</Text>
           </Pressable>
         </View>
       )}
@@ -242,6 +305,33 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
     textAlign: "center",
     textTransform: "uppercase",
+  },
+  leftRightSetGroup: {
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+    borderRadius: 8,
+    padding: 8,
+    backgroundColor: "#FBFBFD",
+  },
+  leftRightSetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: 4,
+    marginBottom: 2,
+  },
+  leftRightSetTitle: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#5856D6",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  removeSetGroupButton: {
+    width: 32,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   addSetButton: {
     marginTop: 12,

@@ -11,11 +11,7 @@ import {
 } from "react-native";
 import { useAppContext, Exercise } from "./context/appContext";
 import { MaterialIcons } from "@expo/vector-icons";
-import {
-  formatSetDisplayLabel,
-  getSetDisplayRows,
-  getSetNumberColor,
-} from "./utils/setDisplay";
+import SetGroupSummary from "./components/setGroupSummary";
 import { selectionFeedback } from "./utils/feedback";
 import {
   getExerciseTrackingMode,
@@ -161,40 +157,7 @@ export default function Exercises() {
                       })} · {item.workoutName}
                     </Text>
                   </View>
-                  <View style={styles.setsContainer}>
-                    {getSetDisplayRows(item.exercise).map(
-                      ({ rowId, set, displaySetNumber, sideLabel }) => (
-                        <View key={rowId} style={styles.setRow}>
-                          <View style={styles.setNumberContainer}>
-                            <Text
-                              style={[
-                                styles.setNumberText,
-                                { color: getSetNumberColor(set) },
-                              ]}
-                            >
-                              {formatSetDisplayLabel(
-                                displaySetNumber,
-                                sideLabel,
-                              )}
-                            </Text>
-                            {set.type === "rir" && typeof set.rir === "number" && (
-                              <Text
-                                style={[
-                                  styles.rirLabel,
-                                  { color: getSetNumberColor(set) },
-                                ]}
-                              >
-                                {set.rir}
-                              </Text>
-                            )}
-                          </View>
-                          <Text style={styles.setDetailsText}>
-                            {set.weight} lbs × {set.reps} reps
-                          </Text>
-                        </View>
-                      ),
-                    )}
-                  </View>
+                  <SetGroupSummary exercise={item.exercise} />
                 </View>
               )}
               ListEmptyComponent={
@@ -325,42 +288,6 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
     fontWeight: "800",
     textTransform: "uppercase",
-  },
-  setsContainer: {
-    gap: 6,
-  },
-  setRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  setNumberContainer: {
-    minWidth: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  setNumberText: {
-    fontSize: 12,
-    color: "#8E8E93",
-    fontWeight: "800",
-    textAlign: "center",
-    lineHeight: 14,
-  },
-  rirLabel: {
-    marginTop: 2,
-    width: "100%",
-    fontSize: 8,
-    fontWeight: "900",
-    textAlign: "center",
-    lineHeight: 10,
-    color: "#5856D6",
-  },
-  setDetailsText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#000",
-    fontWeight: "700",
-    textAlign: "right",
   },
   emptyContainer: {
     alignItems: "center",

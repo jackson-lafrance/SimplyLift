@@ -75,7 +75,7 @@ const ROUTINES_AND_SPLITS_ENABLED_KEY = "routinesAndSplitsEnabled";
 const currentWorkoutKey = (uid: string) => `currentWorkout:${uid}`;
 const editingWorkoutKey = (uid: string) => `editingWorkout:${uid}`;
 
-export type SetType = "warmup" | "failure" | "rir";
+export type SetType = "warmup" | "failure" | "rir" | "dropset";
 
 export interface Set {
   reps: number;

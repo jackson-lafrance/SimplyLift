@@ -17,11 +17,19 @@ export interface SetDisplayRow {
   sideLabel?: SetSideLabel;
 }
 
+export interface SetDisplayGroup {
+  groupId: string;
+  groupType: "standard" | "leftRight";
+  displaySetNumber: number;
+  rows: SetDisplayRow[];
+}
+
 export const SET_TYPE_COLORS: Record<SetTypeOption, string> = {
   normal: "black",
   warmup: "#FF9500",
   failure: "#FF3B30",
   rir: "#5856D6",
+  dropset: "#34C759",
 };
 
 export const RIR_COLORS: Record<number, string> = {
@@ -35,13 +43,16 @@ export const RIR_COLORS: Record<number, string> = {
 
 export const RIR_OPTIONS = [0, 1, 2, 3, 4, 5];
 
-export const getSetDisplayRows = (exercise: Exercise): SetDisplayRow[] =>
-  getExerciseSetGroups(exercise).flatMap<SetDisplayRow>(
-    (setGroup, setGroupIndex) => {
-      const displaySetNumber = setGroupIndex + 1;
+export const getSetDisplayGroups = (exercise: Exercise): SetDisplayGroup[] =>
+  getExerciseSetGroups(exercise).map((setGroup, setGroupIndex) => {
+    const displaySetNumber = setGroupIndex + 1;
 
-      if (setGroup.type === "leftRight") {
-        return [
+    if (setGroup.type === "leftRight") {
+      return {
+        groupId: setGroup.id,
+        groupType: "leftRight" as const,
+        displaySetNumber,
+        rows: [
           {
             rowId: `${setGroup.id}:left`,
             set: setGroup.left,
@@ -58,10 +69,15 @@ export const getSetDisplayRows = (exercise: Exercise): SetDisplayRow[] =>
             displaySetNumber,
             sideLabel: "R" as const,
           },
-        ];
-      }
+        ],
+      };
+    }
 
-      return [
+    return {
+      groupId: setGroup.id,
+      groupType: "standard" as const,
+      displaySetNumber,
+      rows: [
         {
           rowId: `${setGroup.id}:set`,
           set: setGroup.set,
@@ -69,9 +85,12 @@ export const getSetDisplayRows = (exercise: Exercise): SetDisplayRow[] =>
           setSlot: "set" as const,
           displaySetNumber,
         },
-      ];
-    },
-  );
+      ],
+    };
+  });
+
+export const getSetDisplayRows = (exercise: Exercise): SetDisplayRow[] =>
+  getSetDisplayGroups(exercise).flatMap((group) => group.rows);
 
 export const formatSetDisplayLabel = (
   displaySetNumber: number,
@@ -84,4 +103,14 @@ export const getSetNumberColor = (set: Set) => {
   }
 
   return SET_TYPE_COLORS[set.type ?? "normal"];
+};
+
+export const getSetTypeDetailLabel = (set: Set) => {
+  if (set.type === "rir" && typeof set.rir === "number") {
+    return set.rir.toString();
+  }
+
+  if (set.type === "dropset") return "DROP";
+
+  return undefined;
 };

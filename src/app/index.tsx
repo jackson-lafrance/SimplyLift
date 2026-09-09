@@ -17,15 +17,8 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import type { SwipeableMethods } from "react-native-gesture-handler/lib/typescript/components/ReanimatedSwipeable/ReanimatedSwipeableProps";
-import {
-  formatSetDisplayLabel,
-  getSetDisplayRows,
-  getSetNumberColor,
-} from "./utils/setDisplay";
-import {
-  selectionFeedback,
-  warningFeedback,
-} from "./utils/feedback";
+import SetGroupSummary from "./components/setGroupSummary";
+import { selectionFeedback, warningFeedback } from "./utils/feedback";
 
 const { height } = Dimensions.get("window");
 
@@ -340,40 +333,7 @@ export default function Index() {
               {selectedWorkout?.exercises.map((exercise, exIndex) => (
                 <View key={exIndex} style={styles.exerciseContainer}>
                   <Text style={styles.exerciseName}>{exercise.name}</Text>
-                  <View style={styles.setsGrid}>
-                    {getSetDisplayRows(exercise).map(
-                      ({ rowId, set, displaySetNumber, sideLabel }) => (
-                        <View key={rowId} style={styles.setRow}>
-                          <View style={styles.setNumberContainer}>
-                            <Text
-                              style={[
-                                styles.setNumber,
-                                { color: getSetNumberColor(set) },
-                              ]}
-                            >
-                              {formatSetDisplayLabel(
-                                displaySetNumber,
-                                sideLabel,
-                              )}
-                            </Text>
-                            {set.type === "rir" && typeof set.rir === "number" && (
-                              <Text
-                                style={[
-                                  styles.rirLabel,
-                                  { color: getSetNumberColor(set) },
-                                ]}
-                              >
-                                {set.rir}
-                              </Text>
-                            )}
-                          </View>
-                          <Text style={styles.setDetails}>
-                            {set.weight} lbs × {set.reps} reps
-                          </Text>
-                        </View>
-                      ),
-                    )}
-                  </View>
+                  <SetGroupSummary exercise={exercise} />
                 </View>
               ))}
             </ScrollView>
@@ -535,40 +495,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 12,
     textTransform: "uppercase",
-  },
-  setsGrid: {
-    gap: 6,
-  },
-  setRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  setNumberContainer: {
-    minWidth: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  setNumber: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#8E8E93",
-    textAlign: "center",
-    lineHeight: 14,
-  },
-  rirLabel: {
-    marginTop: 2,
-    width: "100%",
-    fontSize: 8,
-    fontWeight: "900",
-    textAlign: "center",
-    lineHeight: 10,
-    color: "#5856D6",
-  },
-  setDetails: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
   },
   modalActions: {
     gap: 10,
